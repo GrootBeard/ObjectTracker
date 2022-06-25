@@ -5,24 +5,27 @@ from path import Path2D
 
 class RadarGenerator:
 
-    def __init__(self, paths: List[Path2D]):
-
+    def __init__(self, paths: List[Path2D], sigma_pos, sigma_vel):
         self.paths = paths
+        self.sigma_pos = sigma_pos
+        self.sigma_vel = sigma_vel
 
     def make_measurement_series(self, probes):
         measurements = []
         for probe in probes:
             for path in self.paths:
-                # TODO add measurement noise, radial velocity (doppler shift)
+                # TODO add measurement noise
                 pt = probe[0]
                 px = probe[1]
                 py = probe[2]
-                x,y = path.pos(pt)
-                r = np.array([x-px, y-py])
+                x, y = path.pos(pt) + np.random.normal(0, self.sigma_pos, 2)
 
-                vr = -r.dot(path.vel(pt)) / np.linalg.norm(r)
-                measurements.append(Measurement(probe[0], x-probe[1], y-probe[2], vr))
-            
+                r = np.array([px-x, py-y])
+                vr = r.dot(path.vel(pt)) / np.linalg.norm(r) + \
+                    np.random.normal(0, self.sigma_vel)
+                measurements.append(Measurement(
+                    probe[0], x-probe[1], y-probe[2], vr))
+
         return measurements
 
 
