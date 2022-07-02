@@ -14,11 +14,14 @@ class RadarGenerator:
         measurements = []
         for probe in probes:
             for path in self.paths:
-                # TODO add measurement noise
+                # TODO add measurement noise model
                 pt = probe[0]
                 px = probe[1]
                 py = probe[2]
-                x, y = path.pos(pt) + np.random.normal(0, self.sigma_pos, 2)
+                if pt <= path.t_min or pt >= path.t_max:
+                    continue
+                x = path.pos(pt)[0] + np.random.normal(0, self.sigma_pos)
+                y = path.pos(pt)[1] + np.random.normal(0, self.sigma_pos)
 
                 r = np.array([px-x, py-y])
                 vr = r.dot(path.vel(pt)) / np.linalg.norm(r) + \

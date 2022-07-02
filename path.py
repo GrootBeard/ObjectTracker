@@ -1,7 +1,8 @@
-from typing import Tuple, Type
+
+from ast import Tuple
 import numpy as np
 
-from interpolator import Interpolator, LinearInterpolator
+from interpolator import Interpolator, LinearInterpolator, NodeCollection
 
 
 class Path2D:
@@ -13,33 +14,23 @@ class Path2D:
     # interpolator is a function that returns a position (x,y) given a time t
     # and the set of nodes describing the path
 
-    def __init__(self, tmax: float, nodes: np.ndarray, interpolatorClass: Interpolator.__class__) -> None:
-        if (nodes.shape[1]) != 2:
-            raise PathWrongDimensionException(2, nodes.shape[1])
-
-        self.t_max = tmax
-        self.nodes = nodes
-        self.N = len(self.nodes)
-
-        self.interpolator = interpolatorClass(self.t_max, self.N)
-
-        print(self.interpolator)
+    def __init__(self, nodes: NodeCollection, interpolatorClass: Interpolator.__class__) -> None:
+        self.interpolator = interpolatorClass()
+        self.interpolator.prepare(nodes)
 
     def pos(self, t) -> np.ndarray:
-        x = self.interpolator.interpolate(t, self.nodes[:, 0])
-        y = self.interpolator.interpolate(t, self.nodes[:, 1])
-        return np.array([x, y])
+        return self.interpolator.interpolate(t)
 
     def vel(self, t) -> np.ndarray:
-        k = np.min([int(np.floor(t * self.N / self.t_max)), self.N - 1])
-        kp = np.min([self.N-1, k+1])
+        return self.interpolator.derivative(t)
 
-        dt = self.t_max/self.N
-
-        vx = (self.nodes[kp, 0] - self.nodes[k, 0])/dt
-        vy = (self.nodes[kp, 1] - self.nodes[k, 1])/dt
-
-        return np.array([vx, vy])
+    @property
+    def t_min(self):
+        return self.interpolator.t_min
+    
+    @property
+    def t_max(self):
+        return self.interpolator.t_max
 
     def __str__(self) -> str:
         return 'Path [0, %2.2f] interpolated by %s' % (self.t_max, self.interpolator.__str__())
