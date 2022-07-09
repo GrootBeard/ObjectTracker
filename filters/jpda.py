@@ -1,12 +1,16 @@
 from ast import List
+from dataclasses import dataclass
+from typing import Set
 import numpy as np
 
 
+@dataclass
 class Measurement:
-
-    def __init__(self, i: int, z: np.array) -> None:
-        self.i = i
-        self.z = z
+    i: int
+    z: np.array
+    # def __init__(self, i: int, z: np.array) -> None:
+    #     self.i = i
+    #     self.z = z
 
 
 class Track:
@@ -41,7 +45,6 @@ class Track:
                 self.sel_mts_indices.add(mt.i)
             else:
                 self.mts_likelihoods.update({mt.i: 0})
-        # self.sel_mts_indices = set(self.mts_likelihoods.keys())
 
     @property
     def S(self) -> np.ndarray:
@@ -51,25 +54,25 @@ class Track:
 def track_betas(cluster_tracks: List(Track)) -> List(float):
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
-    for track in range(len(cluster_tracks)):
+    for tau, track in enumerate(cluster_tracks):
         betas_t = {}
-        for i in cluster_tracks[track].sel_mts_indices:
+        for i in track.sel_mts_indices:
             beta_i = 0
-            t_i_events = __generate_tau_i_events(track, i, assignments)
+            t_i_events = __generate_tau_i_events(tau, i, assignments)
             # sum over each event
             for e in t_i_events:
-                beta_i += np.prod([__lookup_event_track_weight(cluster_tracks[t], e[t])
-                                  for t in range(len(e))])
+                beta_i += np.prod([__lookup_event_track_weight(cluster_tracks[t], mt)
+                                  for t, mt in enumerate(e)])
             betas_t.update({i: beta_i})
         # normalize betas
         tracks_betas.append(betas_t)
 
 
-def __lookup_event_track_weight(track: Track, mt_index: int):
+def __lookup_event_track_weight(track: Track, mt_index: int) -> float:
     if mt_index > 0:
         return track.P_G * track.P_D * track.mts_likelihoods[mt_index]
-    else:
-        return 1 - track.P_G * track.P_D
+
+    return 1 - track.P_G * track.P_D
 
 
 def __generate_tau_i_events(t_index, mt_index, assignments):
@@ -84,10 +87,11 @@ def __generate_tau_i_events(t_index, mt_index, assignments):
 
     for e in events:
         e.insert(t_index, mt_index)
+
     return events
 
 
-def __enumerate_events(M, E, u, v, d=0):
+def __enumerate_events(M, E, u, v, d=0) -> None:
     if d is len(M):
         E.append(v)
         return
@@ -113,11 +117,8 @@ class Cluster:
         self.tracks.append(track)
         self.mts_indices.update(track.sel_mts_indices)
 
-    def overlap(self, indices: List(int)) -> bool:
-        for i in indices:
-            if i != 0 and i in self.mts_indices:
-                return True
-        return False
+    def overlap(self, indices: Set) -> bool:
+        return bool(self.mts_indices.intersection(indices))
 
 
 def build_clusters(tracks: List(Track)) -> List(Cluster):
