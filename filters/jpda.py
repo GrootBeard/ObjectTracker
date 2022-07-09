@@ -8,9 +8,6 @@ import numpy as np
 class Measurement:
     i: int
     z: np.array
-    # def __init__(self, i: int, z: np.array) -> None:
-    #     self.i = i
-    #     self.z = z
 
 
 class Track:
