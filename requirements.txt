@@ -22,6 +22,7 @@ fonttools==4.33.3
 h11==0.13.0
 idna==3.3
 importlib-resources==5.8.0
+iniconfig==1.1.1
 ipykernel==6.15.0
 ipympl==0.9.1
 ipython==8.4.0
@@ -52,11 +53,13 @@ parso==0.8.3
 pexpect==4.8.0
 pickleshare==0.7.5
 Pillow==9.1.1
+pluggy==1.0.0
 prometheus-client==0.14.1
 prompt-toolkit==3.0.29
 psutil==5.9.1
 ptyprocess==0.7.0
 pure-eval==0.2.2
+py==1.11.0
 pycodestyle==2.8.0
 pycparser==2.21
 Pygments==2.12.0
@@ -67,6 +70,8 @@ PyQt5-Qt5==5.15.2
 PyQt5-sip==12.11.0
 pyrsistent==0.18.1
 PySocks==1.7.1
+pytest==7.1.2
+pytest-timeit==0.3.0
 python-dateutil==2.8.2
 pyzmq==23.2.0
 scipy==1.8.1
@@ -80,6 +85,7 @@ stack-data==0.3.0
 terminado==0.15.0
 tinycss2==1.1.1
 toml==0.10.2
+tomli==2.0.1
 tornado==6.1
 traitlets==5.3.0
 trio==0.21.0
