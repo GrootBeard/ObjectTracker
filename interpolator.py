@@ -1,4 +1,4 @@
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 import numpy as np
 from scipy import interpolate
 
@@ -23,8 +23,8 @@ class NodeCollection:
         pass
 
 
-class Interpolator:
-    
+class Interpolator(ABC):
+
     def prepare(self, nodes: NodeCollection) -> None:
         self.t_min = nodes.t_min
         self.t_max = nodes.t_max

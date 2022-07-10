@@ -1,8 +1,7 @@
 
-from ast import Tuple
 import numpy as np
 
-from interpolator import Interpolator, LinearInterpolator, NodeCollection
+from interpolator import Interpolator, NodeCollection
 
 
 class Path2D:
@@ -27,7 +26,7 @@ class Path2D:
     @property
     def t_min(self):
         return self.interpolator.t_min
-    
+
     @property
     def t_max(self):
         return self.interpolator.t_max
