@@ -133,20 +133,17 @@ def PDA(track: Track, betas: Dict, scan: Scan):
         [np.zeros(len(track.H.dot(track.x))), yi - track.H.dot(track.x)])
 
     beta_i = np.array([list(betas.values())])
-    # print(f'beta(i): {beta_i}')
-    K_times_inno = K.dot(innovation.T).T
 
-    xi_kk = track.x + K_times_inno
+    xi_kk = track.x + K.dot(innovation.T).T
     summand_x = beta_i.T * xi_kk
     x_kk = np.sum(summand_x, axis=0)
-    # print(f'x_kk: \n{x_kk}')
 
     Pi_kk = (np.eye(len(track.P)) - K.dot(track.H)).dot(track.P)
+    # TODO: Properly vectorize this code
     error_prod = [np.array([row]).T.dot(np.array([row]))
-                  for row in np.array(- x_kk + xi_kk)]
+                  for row in np.array(xi_kk - x_kk)]
     summand_P = np.array([beta_i]).T * (Pi_kk + error_prod)
     P_kk = np.sum(summand_P, axis=0)
-    # print(f'P_kk: \n{P_kk}')
 
     track.x = x_kk
     track.P = P_kk
