@@ -1,7 +1,7 @@
 from ast import Dict, List, Set
 
 import numpy as np
-from tracking.util.metrics import HistoryEntryType, Scan, TrackHistory
+from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 
 class Track:
@@ -17,12 +17,12 @@ class Track:
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
 
-        self._history_objects = []
+        self._loggers = []
 
     def predict(self, F: np.ndarray, Q: np.ndarray, time: float) -> None:
         new_x = F.dot(self._x)
         new_P = F.dot(self._P).dot(F.T) + Q
-        self.update(new_x, new_P, time, HistoryEntryType.PREDICTION)
+        self.update(new_x, new_P, time, LogEntryType.PREDICTION)
 
     def measurement_selection(self, scan: Scan, g: float) -> None:
         S = self.S
@@ -41,11 +41,11 @@ class Track:
             else:
                 self.mts_likelihoods.update({i_mt: 0})
 
-    def update(self, new_x, new_P, time: float, hist_entry_type=HistoryEntryType.MEASUREMENT):
+    def update(self, new_x, new_P, time: float, hist_entry_type=LogEntryType.MEASUREMENT):
         self._x = new_x
         self._P = new_P
-        for hist in self._history_objects:
-            hist.add_entry(self.x, self.P, time, hist_entry_type)
+        for logger in self._loggers:
+            logger.add_entry(self.x, self.P, time, hist_entry_type)
 
     @property
     def x(self):
@@ -59,8 +59,8 @@ class Track:
     def S(self) -> np.ndarray:
         return self.H.dot(self._P).dot(self.H.T) + self.R
 
-    def add_history(self, hist: TrackHistory):
-        self._history_objects.append(hist)
+    def add_history(self, hist: TrackLog):
+        self._loggers.append(hist)
 
 
 def track_betas(cluster_tracks: List(Track)):
@@ -77,8 +77,8 @@ def track_betas(cluster_tracks: List(Track)):
             betas_t.update({i: beta_i})
         # TODO: normalize betas
         sum = np.sum(list(betas_t.values()))
-        # print(f'betas: {betas_t}')
         betas_t = {i: v/sum for i, v in betas_t.items()}
+
         tracks_betas.append(betas_t)
     return tracks_betas
 
@@ -122,13 +122,14 @@ def __enumerate_events(M, E, u, v, d=0) -> None:
 
 
 def PDA(track: Track, betas: Dict, scan: Scan):
-    K = track.P.dot(track.H.T).dot(np.linalg.inv(track.S))
     keys = list(betas.keys())
     keys.pop(0)
+    if len(keys) == 0:
+        return
+
+    K = track.P.dot(track.H.T).dot(np.linalg.inv(track.S))
+
     yi = np.array([scan.measurements_list[i-1].z for i in keys])
-    print(len(scan.measurements_list))
-    # print(f'scan z:\n {[mt.z for mt in scan.measurements_list]}')
-    print(f'yi: {yi}')
     innovation = np.vstack(
         [np.zeros(len(track.H.dot(track.x))), yi - track.H.dot(track.x)])
 
@@ -144,7 +145,7 @@ def PDA(track: Track, betas: Dict, scan: Scan):
     summand_P = np.array([beta_i]).T * (Pi_kk + error_prod)
     P_kk = np.sum(summand_P, axis=0)
 
-    track.update(x_kk, P_kk, scan.time)
+    track.update(x_kk, P_kk, scan.time, LogEntryType.MEASUREMENT)
 
 
 class Cluster:

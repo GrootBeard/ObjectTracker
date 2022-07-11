@@ -64,38 +64,39 @@ class Scan:
         return list(self._measurements.keys())
 
 
-class HistoryEntryType(Enum):
+class LogEntryType(Enum):
     PREDICTION = auto()
     MEASUREMENT = auto()
 
 
 @dataclass
-class HistoryEntry:
+class LogEntry:
     x: np.array
     P: np.array
     time: float
-    type: HistoryEntryType
+    type: LogEntryType
 
 
-class TrackHistory:
+class TrackLog:
     def __init__(self, x_model: np.ndarray, P_model: np.ndarray) -> None:
         self.x_model = x_model
         self.P_model = P_model
         self.entries = []
 
-    def add_entry(self, x, P, time: float, type: HistoryEntryType) -> None:
+    def add_entry(self, x, P, time: float, type: LogEntryType) -> None:
         xval = self.x_model.dot(x)
         Pval = self.P_model.dot(P)
-        self.entries.append(HistoryEntry(x=xval, P=Pval, time=time, type=type))
+
+        self.entries.append(LogEntry(x=xval, P=Pval, time=time, type=type))
 
     def flatten(self):
-        return (self.flatten_x, self.flatten_P, self.flatten_time)
+        return (self.flatten_x(), self.flatten_P(), self.flatten_time())
 
     def flatten_x(self) -> np.ndarray:
-        return np.array([[v[col] for v in self.entries] for col in self.entries[0].x])
+        return np.array([[v.x[col] for v in self.entries] for col, _ in enumerate(self.entries[0].x)])
 
     def flatten_P(self) -> np.ndarray:
-        return np.array([[v[col] for v in self.entries] for col in self.entries[0].P])
+        return np.array([[v.P[col] for v in self.entries] for col, _ in enumerate(self.entries[0].P)])
 
     def flatten_time(self) -> np.array:
         return np.array([e.time for e in self.entries])
