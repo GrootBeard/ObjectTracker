@@ -1,37 +1,14 @@
-from ast import Dict, List
-from dataclasses import dataclass
-from typing import Set
+from ast import Dict, List, Set
+
 import numpy as np
-
-
-@dataclass
-class Measurement:
-    z: np.array
-
-
-class Scan:
-    def __init__(self, measurements: List(Measurement)) -> None:
-        # measurement with index 0 is reserved for 'no-measurement'
-        self._measurements = {i+1: mt for i, mt in enumerate(measurements)}
-
-    @property
-    def measurements(self):
-        return self._measurements.items()
-
-    @property
-    def measurements_list(self):
-        return list(self._measurements.values())
-
-    @property
-    def measurements_indices(self):
-        return list(self._measurements.keys())
+from tracking.util.metrics import HistoryEntryType, Scan, TrackHistory
 
 
 class Track:
 
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
-        self.x = x
-        self.P = P
+        self._x = x
+        self._P = P
         self.H = H
         self.R = R
         self.P_G = 0.95
@@ -40,16 +17,19 @@ class Track:
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
 
-    def predict(self, F: np.ndarray, Q: np.ndarray) -> None:
-        self.x = F.dot(self.x)
-        self.P = F.dot(self.P).dot(F.T) + Q
+        self._history_objects = []
+
+    def predict(self, F: np.ndarray, Q: np.ndarray, time: float) -> None:
+        new_x = F.dot(self._x)
+        new_P = F.dot(self._P).dot(F.T) + Q
+        self.update(new_x, new_P, time, HistoryEntryType.PREDICTION)
 
     def measurement_selection(self, scan: Scan, g: float) -> None:
         S = self.S
         S_inv = np.linalg.inv(S)
         norm = 1 / np.sqrt(2 * np.pi * np.linalg.det(S))
 
-        y = self.H.dot(self.x)
+        y = self.H.dot(self._x)
         self.mts_likelihoods = {0: 1}
         self.sel_mts_indices = set([0])
         for i_mt, mt in scan.measurements:
@@ -61,9 +41,26 @@ class Track:
             else:
                 self.mts_likelihoods.update({i_mt: 0})
 
+    def update(self, new_x, new_P, time: float, hist_entry_type=HistoryEntryType.MEASUREMENT):
+        self._x = new_x
+        self._P = new_P
+        for hist in self._history_objects:
+            hist.add_entry(self.x, self.P, time, hist_entry_type)
+
+    @property
+    def x(self):
+        return self._x
+
+    @property
+    def P(self):
+        return self._P
+
     @property
     def S(self) -> np.ndarray:
-        return self.H.dot(self.P).dot(self.H.T) + self.R
+        return self.H.dot(self._P).dot(self.H.T) + self.R
+
+    def add_history(self, hist: TrackHistory):
+        self._history_objects.append(hist)
 
 
 def track_betas(cluster_tracks: List(Track)):
@@ -110,13 +107,10 @@ def __generate_tau_i_events(t_index, mt_index, assignments) -> List(List(int)):
 
 def __enumerate_events(M, E, u, v, d=0) -> None:
     if d is len(M):
-        # Try pre-allocating the array v to be a zeros array and then set value
-        # at index d
         E.append(v)
         return
 
     for i in M[d]:
-        # loop over i in M[d] \ u
         if i not in u:
             vnew = v.copy()
             vnew.append(i)
@@ -132,6 +126,9 @@ def PDA(track: Track, betas: Dict, scan: Scan):
     keys = list(betas.keys())
     keys.pop(0)
     yi = np.array([scan.measurements_list[i-1].z for i in keys])
+    print(len(scan.measurements_list))
+    # print(f'scan z:\n {[mt.z for mt in scan.measurements_list]}')
+    print(f'yi: {yi}')
     innovation = np.vstack(
         [np.zeros(len(track.H.dot(track.x))), yi - track.H.dot(track.x)])
 
@@ -142,14 +139,12 @@ def PDA(track: Track, betas: Dict, scan: Scan):
     x_kk = np.sum(summand_x, axis=0)
 
     Pi_kk = (np.eye(len(track.P)) - K.dot(track.H)).dot(track.P)
-    # TODO: Properly vectorize this code
     error_prod = [np.array([row]).T.dot(np.array([row]))
                   for row in np.array(xi_kk - x_kk)]
     summand_P = np.array([beta_i]).T * (Pi_kk + error_prod)
     P_kk = np.sum(summand_P, axis=0)
 
-    track.x = x_kk
-    track.P = P_kk
+    track.update(x_kk, P_kk, scan.time)
 
 
 class Cluster:

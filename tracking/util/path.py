@@ -1,7 +1,6 @@
 
 import numpy as np
-
-from interpolator import Interpolator, NodeCollection
+from tracking.util.interpolator import Interpolator, NodeCollection
 
 
 class Path2D:

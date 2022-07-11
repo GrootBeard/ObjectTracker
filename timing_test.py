@@ -1,7 +1,12 @@
 
 import timeit
+
 import numpy as np
-from filters.jpda import Scan, Track, Measurement, build_clusters, track_betas, PDA
+
+from tracking.filters.jpdaf import (PDA, Scan, Track, build_clusters,
+                                    track_betas)
+from tracking.util.metrics import Measurement
+
 
 def main_test():
     P = np.eye(4)
@@ -31,7 +36,6 @@ def main_test():
         Measurement(np.array([-21, -0.1]))
     ])
 
-
     def fn():
         tracks = [Track(state, P, H, R) for state in initial_states]
         for track in tracks:
@@ -44,10 +48,10 @@ def main_test():
             for t, track in enumerate(clus.tracks):
                 PDA(track, betas[t], scan)
 
-
     N = 100
     elapsed_time = timeit.timeit(stmt=fn, number=N)
     print(f'elapsed time: {elapsed_time/N * 1000}')
+
 
 if __name__ == "__main__":
     main_test()
