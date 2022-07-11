@@ -1,7 +1,8 @@
 from abc import ABC
-from ast import List, Tuple
+from ast import Dict, List, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Optional
 
 import numpy as np
 from tracking.util.path import Path2D
@@ -75,6 +76,7 @@ class LogEntry:
     P: np.array
     time: float
     type: LogEntryType
+    metadata: Optional(Dict)
 
 
 class TrackLog:
