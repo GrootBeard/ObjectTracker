@@ -110,10 +110,13 @@ def __generate_tau_i_events(t_index, mt_index, assignments) -> List(List(int)):
 
 def __enumerate_events(M, E, u, v, d=0) -> None:
     if d is len(M):
+        # Try pre-allocating the array v to be a zeros array and then set value
+        # at index d
         E.append(v)
         return
 
     for i in M[d]:
+        # loop over i in M[d] \ u
         if i not in u:
             vnew = v.copy()
             vnew.append(i)
