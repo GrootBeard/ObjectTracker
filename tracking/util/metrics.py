@@ -64,6 +64,10 @@ class Scan:
     def measurements_indices(self):
         return list(self._measurements.keys())
 
+    @property
+    def values(self):
+        return [mt.z for mt in self.measurements_list]
+
 
 class LogEntryType(Enum):
     PREDICTION = auto()

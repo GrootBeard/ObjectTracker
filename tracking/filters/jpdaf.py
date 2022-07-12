@@ -11,8 +11,8 @@ class Track:
         self._P = P
         self.H = H
         self.R = R
-        self.P_G = 0.95
-        self.P_D = 0.97
+        self.P_G = 0.9
+        self.P_D = 1
 
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
@@ -40,6 +40,8 @@ class Track:
                 self.sel_mts_indices.add(i_mt)
             else:
                 self.mts_likelihoods.update({i_mt: 0})
+
+        print(f'measurements selected: {len(self.sel_mts_indices)}')
 
     def update(self, new_x, new_P, time: float, hist_entry_type=LogEntryType.MEASUREMENT):
         self._x = new_x
