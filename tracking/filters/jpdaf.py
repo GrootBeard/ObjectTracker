@@ -11,7 +11,7 @@ class Track:
         self._P = P
         self.H = H
         self.R = R
-        self.P_G = 0.9
+        self.P_G = 0.95
         self.P_D = 1
 
         self.mts_likelihoods = {}
@@ -61,7 +61,7 @@ class Track:
     def S(self) -> np.ndarray:
         return self.H.dot(self._P).dot(self.H.T) + self.R
 
-    def add_history(self, hist: TrackLog):
+    def add_logger(self, hist: TrackLog):
         self._loggers.append(hist)
 
 
