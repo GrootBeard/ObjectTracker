@@ -1,5 +1,3 @@
-from abc import ABC
-from ast import Dict, List, Tuple
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
@@ -10,7 +8,7 @@ from tracking.util.path import Path2D
 
 class RadarGenerator:
 
-    def __init__(self, paths: List(Path2D), sigma_pos, sigma_vel):
+    def __init__(self, paths: list[Path2D], sigma_pos, sigma_vel):
         self.paths = paths
         self.sigma_pos = sigma_pos
         self.sigma_vel = sigma_vel
@@ -40,14 +38,16 @@ class RadarGenerator:
         return scans
 
 
-@dataclass
+@dataclass(slots=True)
 class Measurement:
     z: np.array
     is_clutter: bool = False
 
 
 class Scan:
-    def __init__(self, time: float, measurements: List(Measurement)) -> None:
+    __slots__ = ("_measurements", "time")
+
+    def __init__(self, time: float, measurements: list[Measurement]) -> None:
         # measurement with index 0 is reserved for 'no-measurement'
         self._measurements = {i+1: mt for i, mt in enumerate(measurements)}
         self.time = time
@@ -70,16 +70,18 @@ class LogEntryType(Enum):
     MEASUREMENT = auto()
 
 
-@dataclass
+@dataclass(slots=True)
 class LogEntry:
     x: np.array
     P: np.array
     time: float
     type: LogEntryType
-    metadata: Optional(Dict)
+    metadata: dict = Optional[dict]
 
 
 class TrackLog:
+    __slots__ = ("x_model", "P_model", "entries")
+
     def __init__(self, x_model: np.ndarray, P_model: np.ndarray) -> None:
         self.x_model = x_model
         self.P_model = P_model

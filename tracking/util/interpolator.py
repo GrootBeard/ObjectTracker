@@ -1,9 +1,11 @@
 from abc import ABC, abstractmethod
+
 import numpy as np
 from scipy import interpolate
 
 
 class NodeCollection:
+    __slots__ = ("positions", "params", "dim", "len")
 
     def __init__(self, positions: np.ndarray, params: np.array) -> None:
         self.positions = positions
@@ -24,6 +26,7 @@ class NodeCollection:
 
 
 class Interpolator(ABC):
+    __slots__ = ("t_min", "t_max")
 
     def prepare(self, nodes: NodeCollection) -> None:
         self.t_min = nodes.t_min
@@ -39,6 +42,7 @@ class Interpolator(ABC):
 
 
 class LinearInterpolator(Interpolator):
+    __slots__ = ("interp_funcs")
 
     def interpolate(self, t: float) -> np.array:
         return np.array([f(t) for f in self.interp_funcs])
@@ -59,10 +63,11 @@ class LinearInterpolator(Interpolator):
 
 
 class SplineInterpolator(Interpolator):
+    __slots__ = ("tck")
 
     def prepare(self, nodes: NodeCollection) -> None:
         super().prepare(nodes)
-        self.tck, u = interpolate.splprep(
+        self.tck, _ = interpolate.splprep(
             nodes.positions.T, u=nodes.params, k=3, s=0)
 
     def interpolate(self, t: float) -> np.array:

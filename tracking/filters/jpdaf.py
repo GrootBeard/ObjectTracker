@@ -1,10 +1,10 @@
-from ast import Dict, List, Set
-
 import numpy as np
 from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 
 class Track:
+    __slots__ = ("_x", "_P", "H", "R", "P_G", "P_D",
+                 "mts_likelihoods", "sel_mts_indices", "_loggers")
 
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
         self._x = x
@@ -63,7 +63,7 @@ class Track:
         self._loggers.append(hist)
 
 
-def track_betas(cluster_tracks: List(Track)):
+def track_betas(cluster_tracks: list[Track]):
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
@@ -89,7 +89,7 @@ def __lookup_event_track_weight(track: Track, mt_index: int) -> float:
     return 1 - track.P_G * track.P_D
 
 
-def __generate_tau_i_events(t_index, mt_index, assignments) -> List(List(int)):
+def __generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
     M = assignments.copy()
     M.pop(t_index)
     u = [] if mt_index == 0 else [mt_index]
@@ -121,7 +121,7 @@ def __enumerate_events(M, E, u, v, d=0) -> None:
             __enumerate_events(M, E, unew, vnew, d+1)
 
 
-def PDA(track: Track, betas: Dict, scan: Scan):
+def PDA(track: Track, betas: dict, scan: Scan):
     keys = list(betas.keys())
     keys.pop(0)
     if len(keys) == 0:
@@ -149,16 +149,17 @@ def PDA(track: Track, betas: Dict, scan: Scan):
 
 
 class Cluster:
+    __slots__ = ("mts_indices", "_tracks")
 
     def __init__(self) -> None:
         self.mts_indices = set()
-        self._tracks: List(Track) = []
+        self._tracks: list[Track] = []
 
     def add_track(self, track: Track) -> None:
         self._tracks.append(track)
         self.mts_indices.update(track.sel_mts_indices)
 
-    def overlap(self, indices: Set) -> bool:
+    def overlap(self, indices: set) -> bool:
         return bool(self.mts_indices.intersection(indices))
 
     @property
@@ -166,7 +167,7 @@ class Cluster:
         return self._tracks
 
 
-def build_clusters(tracks: List(Track)) -> List(Cluster):
+def build_clusters(tracks: list[Track]) -> list[Cluster]:
     clusters = []
     for t in tracks:
         overlap = False
