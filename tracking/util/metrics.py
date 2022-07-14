@@ -6,6 +6,27 @@ import numpy as np
 from tracking.util.path import Path2D
 
 
+class ClutterModel:
+    __slots__ = ("x_bounds", "y_bounds", "object_density",
+                 "random_density", "clutter_objects")
+
+    def __init__(self, bounds, object_density, random_density) -> None:
+        self.x_bounds = (bounds[0], bounds[1])
+        self.y_bounds = (bounds[2], bounds[3])
+        self.object_density = object_density
+        self.random_density = random_density
+        area = (self.x_bounds[1] - self. x_bounds[0]) * \
+            (self.y_bounds[1] - self. y_bounds[0])
+        N_objects = self.object_density * area
+        N_random = self.random_density * area
+        # for n in range(N_objects):
+        # self.clutter_objects.append(np.random.random(size=()))
+
+    @property
+    def clutter(self):
+        return None
+
+
 class RadarGenerator:
 
     def __init__(self, paths: list[Path2D], sigma_pos, sigma_vel):
@@ -15,9 +36,9 @@ class RadarGenerator:
 
     def make_scans_series(self, probes):
         scans = []
-        for probe in probes:
+        for scan_id, probe in enumerate(probes):
             measurements = []
-            for path in self.paths:
+            for mt_id, path in enumerate(self.paths):
                 # TODO add measurement noise model
                 pt = probe[0]
                 # px = probe[1]
@@ -27,13 +48,12 @@ class RadarGenerator:
                 x = path.pos(pt)[0] + np.random.normal(0, self.sigma_pos)
                 y = path.pos(pt)[1] + np.random.normal(0, self.sigma_pos)
 
-                # r = np.array([px-x, py-y])
                 # vr = r.dot(path.vel(pt)) / np.linalg.norm(r) + \
                 #     np.random.normal(0, self.sigma_vel)
                 measurements.append(Measurement(
-                    np.array([x-probe[1], y-probe[2]])))
-            if len(measurements) > 0:
-                scans.append(Scan(time=probe[0], measurements=measurements))
+                    np.array([x-probe[1], y-probe[2]]), scan_id=scan_id, mt_id=mt_id+1))
+            if measurements:
+                scans.append(Scan(time=probe[0], measurements=measurements, scan_id=scan_id))
 
         return scans
 
@@ -41,16 +61,19 @@ class RadarGenerator:
 @dataclass(slots=True)
 class Measurement:
     z: np.array
+    scan_id: int
+    mt_id: int
     is_clutter: bool = False
 
 
 class Scan:
-    __slots__ = ("_measurements", "time")
+    __slots__ = ("_measurements", "time", "scan_id")
 
-    def __init__(self, time: float, measurements: list[Measurement]) -> None:
+    def __init__(self, time: float, measurements: list[Measurement], scan_id:int) -> None:
         # measurement with index 0 is reserved for 'no-measurement'
         self._measurements = {i+1: mt for i, mt in enumerate(measurements)}
         self.time = time
+        self.scan_id = scan_id
 
     @property
     def measurements(self):

@@ -11,9 +11,8 @@ class Track:
         self._P = P
         self.H = H
         self.R = R
-        self.P_G = 0.95
+        self.P_G = 1
         self.P_D = 1
-
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
 
@@ -31,17 +30,17 @@ class Track:
 
         y = self.H.dot(self._x)
         self.mts_likelihoods = {0: 1}
-        self.sel_mts_indices = set([0])
+        self.sel_mts_indices = {0}
         for i_mt, mt in scan.measurements:
             y_ = (mt.z - y).reshape(len(y), 1)
             if y_.T.dot(S_inv).dot(y_) < g:
                 likelihood = norm * np.exp(-y_.T.dot(S).dot(y_))[0, 0]
-                self.mts_likelihoods.update({i_mt: likelihood})
-                self.sel_mts_indices.add(i_mt)
+                self.mts_likelihoods.update({mt.mt_id: likelihood})
+                self.sel_mts_indices.add(mt.mt_id)
             else:
-                self.mts_likelihoods.update({i_mt: 0})
+                self.mts_likelihoods.update({mt.mt_id: 0})
 
-        print(f'measurements selected: {len(self.sel_mts_indices)}')
+        # print(f'measurements selected: {len(self.sel_mts_indices)}')
 
     def update(self, new_x, new_P, time: float, hist_entry_type=LogEntryType.MEASUREMENT):
         self._x = new_x
@@ -71,15 +70,12 @@ def track_betas(cluster_tracks: list[Track]):
     for tau, track in enumerate(cluster_tracks):
         betas_t = {}
         for i in track.sel_mts_indices:
-            beta_i = 0
             t_i_events = __generate_tau_i_events(tau, i, assignments)
-            for e in t_i_events:
-                beta_i += np.prod([__lookup_event_track_weight(cluster_tracks[t], mt)
-                                  for t, mt in enumerate(e)])
-            betas_t.update({i: beta_i})
+            beta_i = sum(np.prod([__lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in t_i_events)
+            betas_t[i] = beta_i
         # TODO: normalize betas
-        sum = np.sum(list(betas_t.values()))
-        betas_t = {i: v/sum for i, v in betas_t.items()}
+        total_weight = np.sum(list(betas_t.values()))
+        betas_t = {i: v/total_weight for i, v in betas_t.items()}
 
         tracks_betas.append(betas_t)
     return tracks_betas
@@ -108,7 +104,7 @@ def __generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
 
 
 def __enumerate_events(M, E, u, v, d=0) -> None:
-    if d is len(M):
+    if d == len(M):
         E.append(v)
         return
 
@@ -126,7 +122,7 @@ def __enumerate_events(M, E, u, v, d=0) -> None:
 def PDA(track: Track, betas: dict, scan: Scan):
     keys = list(betas.keys())
     keys.pop(0)
-    if len(keys) == 0:
+    if not keys:
         return
 
     K = track.P.dot(track.H.T).dot(np.linalg.inv(track.S))
@@ -161,8 +157,8 @@ class Cluster:
         self._tracks.append(track)
         self.mts_indices.update(track.sel_mts_indices)
 
-    def overlap(self, indices: set) -> bool:
-        return bool(self.mts_indices.intersection(indices))
+    def overlap(self, indices: list[int]) -> bool:
+        return any(i != 0 and i in self.mts_indices for i in indices)
 
     @property
     def tracks(self):
