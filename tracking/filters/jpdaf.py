@@ -4,7 +4,7 @@ from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 class Track:
     __slots__ = ("_x", "_P", "H", "R", "P_G", "P_D",
-                 "mts_likelihoods", "sel_mts_indices", "_loggers")
+                 "mts_likelihoods", "sel_mts_indices", "_loggers", "_last_scan")
 
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
         self._x = x
@@ -15,6 +15,7 @@ class Track:
         self.P_D = 1
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
+        self._last_scan = None
 
         self._loggers = []
 
@@ -40,13 +41,14 @@ class Track:
             else:
                 self.mts_likelihoods.update({mt.mt_id: 0})
 
-        # print(f'measurements selected: {len(self.sel_mts_indices)}')
+        self._last_scan = scan
 
-    def update(self, new_x, new_P, time: float, hist_entry_type=LogEntryType.MEASUREMENT):
+    def update(self, new_x, new_P, time: float, hist_entry_type=LogEntryType.UPDATE):
         self._x = new_x
         self._P = new_P
         for logger in self._loggers:
-            logger.add_entry(self.x, self.P, time, hist_entry_type)
+            considered_measurements = [] if hist_entry_type is not LogEntryType.UPDATE else [self._last_scan.measurements_list[i-1] for i in self.sel_mts_indices if i != 0]
+            logger.add_entry(self.x, self.P, time, hist_entry_type, considered_measurements)
 
     @property
     def x(self):
@@ -143,7 +145,7 @@ def PDA(track: Track, betas: dict, scan: Scan):
     summand_P = np.array([beta_i]).T * (Pi_kk + error_prod)
     P_kk = np.sum(summand_P, axis=0)
 
-    track.update(x_kk, P_kk, scan.time, LogEntryType.MEASUREMENT)
+    track.update(x_kk, P_kk, scan.time, LogEntryType.UPDATE)
 
 
 class Cluster:

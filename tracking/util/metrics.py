@@ -51,7 +51,7 @@ class RadarGenerator:
                 # vr = r.dot(path.vel(pt)) / np.linalg.norm(r) + \
                 #     np.random.normal(0, self.sigma_vel)
                 measurements.append(Measurement(
-                    np.array([x-probe[1], y-probe[2]]), scan_id=scan_id, mt_id=mt_id+1))
+                    np.array([x-probe[1], y-probe[2]]), scan_id=scan_id, mt_id=mt_id+1, origin_id=path.uid))
             if measurements:
                 scans.append(Scan(time=probe[0], measurements=measurements, scan_id=scan_id))
 
@@ -63,6 +63,7 @@ class Measurement:
     z: np.array
     scan_id: int
     mt_id: int
+    origin_id: int
     is_clutter: bool = False
 
 
@@ -94,7 +95,8 @@ class Scan:
 
 class LogEntryType(Enum):
     PREDICTION = auto()
-    MEASUREMENT = auto()
+    UPDATE = auto()
+    ANY = auto()
 
 
 @dataclass(slots=True)
@@ -103,7 +105,11 @@ class LogEntry:
     P: np.array
     time: float
     type: LogEntryType
+    considered_measurements: list[Measurement] 
     metadata: dict = Optional[dict]
+
+    def __repr__(self):
+        return f'LogEntry time: {self.time}, x-value: {self.x}'
 
 
 class TrackLog:
@@ -114,20 +120,30 @@ class TrackLog:
         self.P_model = P_model
         self.entries = []
 
-    def add_entry(self, x, P, time: float, type: LogEntryType) -> None:
+    def add_entry(self, x, P, time: float, type: LogEntryType, considered_measurements: list[Measurement]) -> None:
         xval = self.x_model.dot(x)
         Pval = self.P_model.dot(P)
 
-        self.entries.append(LogEntry(x=xval, P=Pval, time=time, type=type))
+        self.entries.append(LogEntry(x=xval, P=Pval, time=time, type=type, considered_measurements=considered_measurements))
 
-    def flatten(self):
-        return (self.flatten_x(), self.flatten_P(), self.flatten_time())
+    def filter_by_type(self, type: LogEntryType | list[LogEntryType]= LogEntryType.ANY) -> list[LogEntry]:
+        if isinstance(type, LogEntryType):
+            type_filter = [type]
+        if LogEntryType.ANY in type_filter:
+            return self.entries
+        return [entry for entry in self.entries if entry.type in type_filter]
 
-    def flatten_x(self) -> np.ndarray:
-        return np.array([[v.x[col] for v in self.entries] for col, _ in enumerate(self.entries[0].x)])
+    def flatten(self, type_filter: LogEntryType | list[LogEntryType]= LogEntryType.ANY):
+        return (self.flatten_x(type_filter), self.flatten_P(type_filter), self.flatten_time(type_filter))
 
-    def flatten_P(self) -> np.ndarray:
-        return np.array([[v.P[col] for v in self.entries] for col, _ in enumerate(self.entries[0].P)])
+    def flatten_x(self, type_filter: LogEntryType | list[LogEntryType] = LogEntryType.ANY) -> np.ndarray:
+        filtered_entries = self.filter_by_type(type_filter)
+        return np.array([[v.x[col] for v in filtered_entries] for col, _ in enumerate(filtered_entries[0].x)])
 
-    def flatten_time(self) -> np.array:
-        return np.array([e.time for e in self.entries])
+    def flatten_P(self, type_filter: LogEntryType | list[LogEntryType]= LogEntryType.ANY) -> np.ndarray:
+        filtered_entries = self.filter_by_type(type_filter)
+        return np.array([[v.P[col] for v in filtered_entries] for col, _ in enumerate(filtered_entries[0].P)])
+
+    def flatten_time(self, type_filter: LogEntryType | list[LogEntryType]= LogEntryType.ANY) -> np.array:
+        filtered_entries = self.filter_by_type(type_filter)
+        return np.array([e.time for e in filtered_entries])
