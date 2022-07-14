@@ -70,8 +70,8 @@ def track_betas(cluster_tracks: list[Track]):
     for tau, track in enumerate(cluster_tracks):
         betas_t = {}
         for i in track.sel_mts_indices:
-            t_i_events = __generate_tau_i_events(tau, i, assignments)
-            beta_i = sum(np.prod([__lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in t_i_events)
+            t_i_events = _generate_tau_i_events(tau, i, assignments)
+            beta_i = sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in t_i_events)
             betas_t[i] = beta_i
         # TODO: normalize betas
         total_weight = np.sum(list(betas_t.values()))
@@ -81,13 +81,13 @@ def track_betas(cluster_tracks: list[Track]):
     return tracks_betas
 
 
-def __lookup_event_track_weight(track: Track, mt_index: int) -> float:
+def _lookup_event_track_weight(track: Track, mt_index: int) -> float:
     if mt_index > 0:
         return track.P_G * track.P_D * track.mts_likelihoods[mt_index]
     return 1 - track.P_G * track.P_D
 
 
-def __generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
+def _generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
     M = assignments.copy()
     M.pop(t_index)
     u = [] if mt_index == 0 else [mt_index]
@@ -95,7 +95,7 @@ def __generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
         u.remove(0)
 
     events = []
-    __enumerate_events(M, events, u, [])
+    _enumerate_events(M, events, u, [])
 
     for e in events:
         e.insert(t_index, mt_index)
@@ -103,7 +103,7 @@ def __generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
     return events
 
 
-def __enumerate_events(M, E, u, v, d=0) -> None:
+def _enumerate_events(M, E, u, v, d=0) -> None:
     if d == len(M):
         E.append(v)
         return
@@ -116,7 +116,7 @@ def __enumerate_events(M, E, u, v, d=0) -> None:
             # feasible events can have multiple tracks with no measurement assigned
             if i != 0:
                 unew.append(i)
-            __enumerate_events(M, E, unew, vnew, d+1)
+            _enumerate_events(M, E, unew, vnew, d+1)
 
 
 def PDA(track: Track, betas: dict, scan: Scan):
