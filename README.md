@@ -17,5 +17,7 @@ Use joint probabilistic data association algorithms to track multiple obects.
 - Add abstraction for model
   - Abstract model should generate matrices H, F, Q etc. based on a set of parameters
   - Abstract model should also specify which values can be logged
+  - Support non-linear models
+  - Model matrices should have parameters like time delta
 - Path creation and deletion
   - Several methods to perform this
