@@ -3,7 +3,7 @@ from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 
 class Track:
-    __slots__ = ("_x", "_P", "H", "R", "P_G", "P_D",
+    __slots__ = ("_x", "_P", "H", "R", "prob_gate", "prob_detection",
                  "mts_likelihoods", "sel_mts_indices", "_loggers", "_last_scan")
 
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
@@ -11,8 +11,8 @@ class Track:
         self._P = P
         self.H = H
         self.R = R
-        self.P_G = 1
-        self.P_D = 1
+        self.prob_gate = 1
+        self.prob_detection = 1
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
         self._last_scan = None
@@ -85,8 +85,8 @@ def track_betas(cluster_tracks: list[Track]):
 
 def _lookup_event_track_weight(track: Track, mt_index: int) -> float:
     if mt_index > 0:
-        return track.P_G * track.P_D * track.mts_likelihoods[mt_index]
-    return 1 - track.P_G * track.P_D
+        return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index]
+    return 1 - track.prob_gate * track.prob_detection
 
 
 def _generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:

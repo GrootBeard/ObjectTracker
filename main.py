@@ -81,7 +81,6 @@ def main():
             track.predict(F=F, Q=Q, time=time)
 
         if time+dt >= working_scans[0].time:
-            # print(f'Updating scan {working_scans[0].scan_id}')
             dt_ = working_scans[0].time - time
             time = working_scans[0].time
 #           F1_ = np.array([[1, dt_, dt_**2/2], [0, 1, dt_], [0, 0, 1]])
@@ -96,11 +95,10 @@ def main():
             Q1_ = v_.dot(v_.T)
             Q_ = np.kron(np.eye(2), Q1_)
 
-            for track_index, track in enumerate(tracks):
+            for track in tracks:
                 track.predict(F=F_, Q=Q_, time=time)
                 track.measurement_selection(working_scans[0], gate)
-                # print(f'track {track_index}, selected mts: {track.sel_mts_indices}')
-
+             
             clusters = build_clusters(tracks)
             for clus in clusters:
                 betas = track_betas(clus.tracks)
@@ -110,7 +108,8 @@ def main():
             working_scans.pop(0)
             if len(working_scans) == 0:
                 break
-
+             
+    print('finished tracking')
     track_data = [t._loggers[0].flatten_x() for t in tracks]
 
     vz = TrackVisualizer(0)
@@ -130,8 +129,12 @@ def main():
     plt.grid(True)
     plt.scatter(ms_x, ms_y, s=3)
 
+    input('Enter to continue')
     plot = plt.subplot(1,2,2)
-    vz.render(plot, [0], [])
+    for e in range(80):
+        vz.buffer(1, e)
+        vz.render(plot, True)
+        plt.pause(0.3)
 
     plt.show(block=True)
 

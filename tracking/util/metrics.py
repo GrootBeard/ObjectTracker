@@ -113,16 +113,21 @@ class LogEntry:
 
 
 class TrackLog:
-    __slots__ = ("x_model", "P_model", "entries")
+    __slots__ = ("x_model", "P_model", "entries", "epochs")
 
     def __init__(self, x_model: np.ndarray, P_model: np.ndarray) -> None:
         self.x_model = x_model
         self.P_model = P_model
         self.entries = []
+        self.epochs = [[]]
 
     def add_entry(self, x, P, time: float, type: LogEntryType, considered_measurements: list[Measurement]) -> None:
         xval = self.x_model.dot(x)
         Pval = self.P_model.dot(P)
+
+        self.epochs[-1].append(len(self.entries)) 
+        if type is LogEntryType.UPDATE:
+            self.epochs.append([])
 
         self.entries.append(LogEntry(x=xval, P=Pval, time=time, type=type, considered_measurements=considered_measurements))
 
