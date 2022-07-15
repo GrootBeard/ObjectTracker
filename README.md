@@ -3,8 +3,8 @@ Use joint probabilistic data association algorithms to track multiple obects.
 
 ## Things to do
 - Improve logger
-  - Add logging of considered (feasible) measurements for each track at each epoch
-  - Add coloring based on if measuremnt is actual, clutter or originating from a diffrent track
+  - ~~Add logging of considered (feasible) measurements for each track at each epoch~~
+  - ~~Add coloring based on if measuremnt is actual, clutter or originating from a diffrent track~~
 - Add clutter
   - Random clutter based on density, distribution function
   - Static objects in environment (specified by user)
