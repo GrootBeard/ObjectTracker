@@ -1,3 +1,10 @@
 **/__pycache__/*
 *.swp
+*.log
+*.aux
+*.fdb_latexmk
+*.fls
+*.out
+*.pdf
+*.toc
 

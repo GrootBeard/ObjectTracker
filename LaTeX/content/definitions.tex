@@ -1,0 +1,63 @@
+\section{Definitions}
+\subsection{Basic probability theory notation}
+Vectors are indicated with bold lower-case letters and matrices are indicated with bold capital letters, i.e. $\mathbf v$ is a vector and $\mathbf M$ is a matrix.
+
+A multivariate, normally-distributed, random variable $\mathbf z$ with mean $\mathbf \mu$ and covariance matrix $\mathbf \Sigma$ is denoted as
+\begin{equation}
+    \mathcal N(\mathbf z; \bm \mu, \mathbf \Sigma) = \frac{1}{\sqrt{|2\pi \mathbf \Sigma|}}e^{-(\mathbf z - \bm{\mu})^\intercal \mathbf \Sigma (\mathbf z - \bm \mu)/2}
+\end{equation}
+
+\subsection{Measurements and sequences}
+Set of received measurements at time $k$.
+\begin{equation}
+    \mathbf y_k = \left\{ \mathbf y^k (i): i=1,2,\dots,m_k\right\} = \left\{ \mathbf y^k(1) , \mathbf y^k(2),\dots,\mathbf y^k(m_k)\right\}
+\end{equation}
+$m_k$ is the number of received measurements at time $k$ and equals the cardinality of $m_k$:
+\begin{equation}
+    m_k = \left| \mathbf y_k\right|
+\end{equation}
+\begin{equation}
+    \label{eq:measurement-sequence}
+    \mathbf Y^k = \mathbf y_k \bigcup \mathbf Y^{k-1}
+\end{equation}
+\begin{equation}
+    \mathbf Y^0 = \emptyset
+\end{equation}
+For each tracked object, the event that measurement $\mathbf y_k(i_k)$ corresponds to that object is $\theta_k(i_k)$.
+
+The set of possible measurement sequences is $\left\{ \xi_k(c_k): c_k = 1,\dots,C_k\right\}$, where each measurement sequence is a
+set of the form
+\begin{equation}
+    \xi_k(c_k) = \left\{ i_1, \dots, i_k \right\};\quad i_l = 0,\dots, m_l;\quad l = 1,\dots, k
+\end{equation}
+and $C_k$ is the total number of possible sequences:
+\begin{equation}
+    C_k = \prod^k_{l=1}(1+m_l)
+\end{equation}
+\begin{equation}
+    p(\mathbf x_k | c_k) = p(\mathbf x_k| \xi_k(c_k),\chi_k, \mathbf Y^k)
+\end{equation}
+\begin{equation}
+    p(c_k) = p(\xi_k(c_k)|\chi_k, \mathbf Y^k)
+\end{equation}
+
+\subsection{Clusters and joint events}
+Set of measurements selected by track $\tau$ at time $k$
+\begin{equation}
+    \mathbf y_k^\tau = \left\{ \mathbf y^k(i) : \mathbf y^k(i) \in \mathcal G(\tau, k) \right\}
+\end{equation}
+where $\mathcal G(\tau, k)$ is the gate of track $\tau$ at time $k$.
+Clusters
+\begin{equation}
+    \left\{ \mathcal C \right\}_k = \left\{ \left( \left\{ \tau_i \right\}, \left\{ \mathbf y^{\tau_i}_k \right\} \right) : \bigcap_{\tau_i}\mathbf y^{\tau_i}_k \neq\emptyset\right\}
+\end{equation}
+Joint event
+\begin{equation}
+    \varepsilon = \bigcap^T_{\tau=1}\theta_k^\tau(i(\tau, \varepsilon))
+\end{equation}
+where $\theta^\tau_k (i(\tau, \varepsilon))$ is the event that $\mathbf y^k (i(\tau, \varepsilon))$ is the measurement originating from track $\tau$.
+\begin{align}
+    &T_0(\varepsilon) = \left\{ \tau : \varepsilon \text{ assigns no measurement to } \tau \right\}\\
+    &T_1(\varepsilon) = \left\{ \tau : \varepsilon \text{ assigns one measurement to } \tau\right\}\\
+    &\Xi(\tau, i) = \left\{ \varepsilon : \text{measurement } i \text{ is allocated to track } \tau \right\}
+\end{align}

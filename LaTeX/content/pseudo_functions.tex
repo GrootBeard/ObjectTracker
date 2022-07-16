@@ -1,0 +1,70 @@
+\section{Pseudo functions}
+
+\subsection{Measurement selection \texorpdfstring{$\text{MS}_1$}{MS1}\label{sec:MS}}
+\begin{equation}
+    \mathbf y_k(c_k, \sigma) = \left\{ \mathbf y \in \mathbf Y_k : (\mathbf y - \hat{\mathbf y}_{k|k-1}(c_{k-1}, \sigma))^\intercal\mathbf S^{-1}_k(c_{k-1}, \sigma)(\mathbf y -\hat{\mathbf y}_{k|k-1}(c_{k-1}, \sigma))\leq g \right\}
+\end{equation}
+with $\sqrt{g}$ the gate size. The volume of the gate is
+\begin{equation}
+    V_k(c_{k-1}, \sigma) = \frac{\pi^{n/2}}{\Gamma(n/2 + 1)}\sqrt{g|\mathbf S_k(c_{k-1}, \sigma)|}
+\end{equation}
+where $n$ is the dimensionality of the measurement-state space.
+
+\subsection{Measurement likelihoods \texorpdfstring{$\text{ML}_1$}{ML1}}\label{sec:ML}
+\begin{equation}
+    \left[\left\{  p_k(i, c_{k-1}, \sigma) \right\}_i\right] = \text{ML}_1\!\left[\{\mathbf y_k(i)\}_i, \hat{\mathbf x}_{k|k-1}(c_{k-1},\sigma), \mathbf P_{k|k-1}(c_{k-1}, \sigma), \mathbf H, \mathbf R\right]
+\end{equation}
+\begin{align}
+    p_k(i, c_{k-1}, \sigma) =
+    \begin{cases}
+        \frac{1}{P_G}\mathcal N(\mathbf y_k(i); \hat{\mathbf y}_{k|k-1}(c_{k-1}, \sigma), \mathbf S_k (c_{k-1}, \sigma)), & \mathbf y_k(i)\in V_k(c_{k-1}, \sigma)    \\
+        0,                                                                                                                & \mathbf y_k(i)\notin V_k(c_{k-1}, \sigma)
+    \end{cases}
+\end{align}
+On track level
+\begin{equation}
+    p_k(i) \equiv p(\mathbf y_k(i)|\chi_k, \mathbf Y^{k-1}) = \sum_{c_{k-1}=1}^{C_{k-1}}p(c_k-1)p_k(i, c_{k-1})
+\end{equation}
+
+\subsection{Multi-object data assocation JMTDA (single track component and definite object existence)}\label{sec:JMTDA}
+
+\begin{equation}
+    \left[\left\{ \cdot , \left\{\beta_k^\tau(i)\right\}_{i\geq 0}\right\}_\tau\right] = \text{JMTDA}\!\left[\left\{ 1, \left\{ p^\tau_k(i)\right\}_{i>0}\right\}_\tau\right]
+\end{equation}
+\begin{equation}
+    \begin{split}
+        \beta^\tau_k (i) &= \sum_{\varepsilon\in \Xi(\tau, i)}p(\varepsilon|\mathbf Y^k)\\
+        &=\sum_{\varepsilon \in \Xi(\tau, i)} \frac{1}{c_k} \left[ \prod_{\tau_\alpha\in T_0(\varepsilon)} \left( 1-P_D^{\tau_\alpha} P_G^{\tau_\alpha} \right)\prod_{\tau_\alpha\in T_1(\varepsilon)}\left( P_G^{\tau_\alpha} P_D^{\tau_\alpha} \frac{p_k^{\tau_\alpha}(i(\tau_\alpha, \epsilon))}{\rho_k(i(\tau_\alpha, \varepsilon))} \right)\right]
+    \end{split}
+\end{equation}
+The normalization factor $c_k$ is found by requiring
+\begin{equation}
+    \sum_{\varepsilon}p(\varepsilon|\mathbf Y^k) = 1
+\end{equation}
+
+\subsection{Probabilistic data association \texorpdfstring{$\text{PDA}_\text{E}$}{PDAE}}\label{sec:PDA}
+
+\begin{equation}
+    \left[\hat{\mathbf x}_{k|k}, \mathbf P_{k|k}\right] = \text{PDA}_\text E \left[\hat{\mathbf x}_{k|k-1}, \mathbf P_{k|k-1}, \left\{ \mathbf y_k(i)\right\}^{m_k}_{i=1}, \left\{ \mathbf \beta_k(i)\right\}^{m_k}_{i=0}, \mathbf H, \mathbf R\right]
+\end{equation}
+The inovations $\tilde{\mathbf y}_k(i)$ are defined by
+\begin{equation}
+    \tilde{\mathbf y}_k(i) = \mathbf y_k(i) - \hat{\mathbf y}_{k|k-1}
+\end{equation}
+For $i=0$, we have the special case $\tilde{\mathbf y}_k(0) = 0$.
+The estimatated track mean is given by
+\begin{equation}
+    \begin{split}
+        \hat{\mathbf x}_{k|k} &= \sum_{i=0}^{d}\beta_k(i)\hat{\mathbf x}^i_{k|k}\\
+        &=\sum_{i=0}^{d}\beta_k(i)\left[ \hat{\mathbf x}_{k|k-1} + \mathbf K_k \tilde{\mathbf y}_k(i) \right]
+    \end{split}
+\end{equation}
+\begin{equation}
+    \begin{aligned}
+        \mathbf P_{k|k} & = \sum^d_{i=0} &  & \beta_k(i)  \left[ \mathbf P^i_{k|k} + \left[ \hat{\mathbf x}^i_{k|k} - \hat{\mathbf x}_{k|k} \right]\!\!\left[ \hat{\mathbf x}^i_{k|k} - \hat{\mathbf x}_{k|k} \right]^\intercal \, \right]                                                              \\
+                        & = \sum^d_{i=0} &  & \beta_k(i)  \left\{\left( \mathbf I - \mathbf K_k\mathbf H \right)  \mathbf P_{k|k-1} \right.                                                                                                                                                                            \\
+                        & ~              &  & \hphantom{\beta_k(i)\{} +\left.  \left[ \hat{\mathbf x}_{k|k-1} -\hat{\mathbf x}_{k|k} + \mathbf K_k \tilde{\mathbf y}(i) \right] \!\!\left[ \hat{\mathbf x}_{k|k-1} -\hat{\mathbf x}_{k|k} + \mathbf K_k \tilde{\mathbf y}(i) \right]^\intercal \right\}
+    \end{aligned}
+\end{equation}
+\subsection{Clutter measurement density estimation \texorpdfstring{$\text{MTT}_\text{MK}$}{MTT MK}}\label{sec:MTT}
+not yet decided

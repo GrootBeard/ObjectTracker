@@ -1,0 +1,42 @@
+% Packages:
+% geometry -> Eenvoudig aanpassen van paginamaat en marges.
+% babel    -> Juiste afbreekregels en dergelijke!
+% parskip  -> Alinea's beginnen links uitgelijnd en er staat een lege
+%             regel tussen alinea's.
+% \usepackage[a4paper,margin=2cm]{geometry}
+% \usepackage[english]{babel}
+% \usepackage{parskip}
+
+\usepackage{geometry}
+\usepackage{amsfonts, amsmath, amssymb, bm}
+\usepackage{ textcomp }
+\usepackage{dsfont}
+\usepackage{enumerate}
+\usepackage{graphicx}
+\usepackage{simpler-wick}
+\usepackage{slashed}
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage[hidelinks]{hyperref}
+
+% Declarations
+\DeclareMathOperator{\Tr}{Tr}
+
+% Operators and special products
+\newcommand{\bra}[1]{\left< #1 \right|}
+\newcommand{\ket}[1]{\left| #1 \right>}
+\newcommand{\braket}[2]{\left< #1|#2 \right>}
+\newcommand{\Partial}[3]{\frac{\partial^{#3} #1}{\partial #2^{#3}}}
+\newcommand{\D}[3]{\frac{d^{#3} #1}{d #2^{#3}}}
+\newcommand{\mean}[1]{\left< #1 \right>}
+\newcommand{\commutator}[2]{\left[ #1, #2\right]}
+\newcommand{\parentheses}[1]{\left(#1\right)}
+\newcommand{\brackets}[1]{\left[ #1 \right]}
+\newcommand{\evaluated}[1]{\left. #1 \right|}
+\newcommand{\curl}[2]{\mathbf #1 \times \mathbf #2}
+
+
+
+% Special characters
+\newcommand{\Lagr}{\mathcal{L}}
+\newcommand{\R}{\ensuremath\mathbb{R}}
