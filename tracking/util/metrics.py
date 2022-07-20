@@ -6,26 +6,23 @@ import numpy as np
 from tracking.util.path import Path2D
 
 
-class ClutterModel:
-    __slots__ = ("x_bounds", "y_bounds", "object_density",
-                 "random_density", "clutter_objects")
+class PoissonClutter:
+    __slots__ = ("rng", "x_bounds", "y_bounds", "clutter_density", "width", "height")
 
-    def __init__(self, bounds, object_density, random_density) -> None:
+    def __init__(self, bounds, clutter_density, seed: int = None) -> None:
+        self.rng = np.random.default_rng(seed)
         self.x_bounds = (bounds[0], bounds[1])
         self.y_bounds = (bounds[2], bounds[3])
-        self.object_density = object_density
-        self.random_density = random_density
-        area = (self.x_bounds[1] - self. x_bounds[0]) * \
-            (self.y_bounds[1] - self. y_bounds[0])
-        N_objects = self.object_density * area
-        N_random = self.random_density * area
-        # for n in range(N_objects):
-        # self.clutter_objects.append(np.random.random(size=()))
+        self.clutter_density = clutter_density
 
-    @property
-    def clutter(self):
-        return None
-
+        self.width = self.x_bounds[1] - self. x_bounds[0]
+        self.height = self.y_bounds[1] - self. y_bounds[0]
+    
+    def generate_clutter(self):
+        m_k = self.rng.poisson(self.width * self.height * self.clutter_density)
+        print(f'number of clutter measurements: {m_k}')
+        return (self.rng.random(m_k) * self.width - self.x_bounds[0], self.rng.random(m_k) * self.height - self.y_bounds[0])
+         
 
 class RadarGenerator:
 
@@ -34,7 +31,7 @@ class RadarGenerator:
         self.sigma_pos = sigma_pos
         self.sigma_vel = sigma_vel
 
-    def make_scans_series(self, probes):
+    def make_scans_series(self, probes, clutter_generator):
         scans = []
         for scan_id, probe in enumerate(probes):
             measurements = []
