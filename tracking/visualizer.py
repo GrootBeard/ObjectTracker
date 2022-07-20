@@ -36,7 +36,6 @@ class TrackVisualizer:
         plot.scatter([b[0] for b in self._prediction_buffer], [b[1] for b in self._prediction_buffer], color='purple', s=6)
         plot.scatter([b[0] for b in self._actuals_buffer], [b[1] for b in self._actuals_buffer], color='blue', s=10)
         plot.scatter([b[0] for b in self._considered_mts_buffer], [b[1] for b in self._considered_mts_buffer], color='green', s=8)
-        print('rendered epoch')
 
     def buffer(self, track: int, epochs: int | list[int], clear_buffer: bool = False):
         if not self._is_initialized:
