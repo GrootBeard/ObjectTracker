@@ -77,7 +77,10 @@ def track_betas(cluster_tracks: list[Track]):
             betas_t[i] = beta_i
         # TODO: normalize betas
         total_weight = np.sum(list(betas_t.values()))
-        betas_t = {i: v/total_weight for i, v in betas_t.items()}
+        if total_weight > 0:
+            betas_t = {i: v/total_weight for i, v in betas_t.items()}
+        else:
+            betas_t = {i: 0 for i in betas_t}
 
         tracks_betas.append(betas_t)
     return tracks_betas
