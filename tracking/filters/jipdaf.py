@@ -84,7 +84,7 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int]):
         if len(association_probabilities) > 1:
             existance_prob += sum([association_probabilities[1:]])
 
-        betas_tau = {t: association_probabilities[i] for i, t in enumerate(cluster_mts_indices)} 
+        betas_tau = {t: association_probabilities[i] / existance_prob for i, t in enumerate(cluster_mts_indices)} 
 
         tracks_betas.append(betas_tau)
     return tracks_betas
