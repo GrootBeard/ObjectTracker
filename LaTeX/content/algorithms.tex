@@ -34,3 +34,41 @@
         \EndFor 
     \end{algorithmic}
 \end{algorithm}
+
+\subsection{Joint integrated probablistic data association filter}
+\begin{algorithm}
+    \label{alg:jipdaf}
+    \caption{JIPDAF}
+    \begin{algorithmic}[1]
+        \State Time $k$ inputs:
+        \begin{itemize}
+            \item set $\mathbf Y_k $
+            \item object existance probability $p(\chi^\tau_{k-1|k-1})$ for each track $\tau$
+            \item compute $\hat{\mathbf x}^\tau_{k-1|k-1}$ and $\mathbf P^\tau_{k-1|k-1}$ for each track $\tau$
+        \end{itemize}
+        \For{each $\tau$}
+        \State Track state prediction:
+        $$p(\chi^\tau_{k} | \bar{\mathbf Y}^{k-1}) = \gamma_{11}p(\chi^\tau_{\bar{\mathbf Y}^{k-1}}) $$
+        $$\left[ \hat{\mathbf x}^\tau_{k|k-1}, \mathbf P^\tau_{k|k-1}\right] = \text{KF}_\text p \left[ \hat{\mathbf x}^\tau_{k-1|k-1},\mathbf P^\tau_{k-1|k-1}, \mathbf F, \mathbf Q\right]$$
+        \State Measurement selection (see \ref{sec:MS}):
+        $$\left[\mathbf y^\tau_k, V^\tau_k\right] = \text{MS}_1\left[\mathbf Y_k, \hat{\mathbf x}^\tau_{k|k-1}, \mathbf P^\tau_{k|k-1}, \mathbf H, \mathbf R\right]$$
+        \State Measurement likelyhood for each selected measurement $i$ (see \ref{sec:ML}):
+        $$\left[\left\{ p^\tau_k(i)\right\}_i\right] = \text{ML}_1\left[\left\{\mathbf y_k(i)\right\}_i, \hat{\mathbf x}^\tau_{k|k-1}, \mathbf P^\tau_{k|k-1}, \mathbf H, \mathbf R\right]$$
+        \EndFor
+        \For{each cluster}
+        $$\mathbf y_k = \bigcup_\tau \mathbf y^\tau_k$$
+        \If{non-parametric tracking}
+        \State Calculate cluster $V_k$ 
+        \State Clutter measurement density estimation (see \ref{sec:MTT}):
+        $$\rho = \text{MTT}_\text{MK}\left( \left\{ 1 \right\}_\tau, \left\{ p^\tau_k(i) \right\}_{\tau,i}\right)/V_k$$
+        \EndIf
+        \State Multi-object data association (see \ref{sec:JMTDA}):
+        $$\left[\left\{ p(\chi^\tau_k | \bar{\mathbf Y}), \left\{\beta_k^\tau(i)\right\}_{i\geq 0}\right\}_\tau\right] = \text{JMTDA}\!\left[\left\{ p(\chi^\tau_{k}|\bar{\mathbf Y}^{k-1}), \left\{ p^\tau_k(i)\right\}_{i>0}\right\}_\tau\right]$$
+        \EndFor
+        \For{each track $\tau$}
+        \State Estimation/merging (see \ref{sec:PDA}):
+        $$\left[\hat{\mathbf x}^\tau_{k|k}, \mathbf P^\tau_{k|k}\right] = \text{PDA}_\text E \left[\hat{\mathbf x}^\tau_{k|k-1}, \mathbf P^\tau_{k|k-1}, \left\{ \mathbf y_k(i)\right\}^{m_k}_{i=1}, \left\{ \mathbf \beta_k(i)\right\}^{m_k}_{i=0}, \mathbf H, \mathbf R\right]$$
+        \State Output trajectory
+        \EndFor 
+    \end{algorithmic}
+\end{algorithm}

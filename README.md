@@ -6,7 +6,7 @@ Use joint probabilistic data association algorithms to track multiple obects.
   - ~~Add logging of considered (feasible) measurements for each track at each epoch~~
   - ~~Add coloring based on if measuremnt is actual, clutter or originating from a diffrent track~~
 - Add clutter
-  - Random clutter based on density, distribution function
+  - ~~Random clutter based on density, distribution function~~
   - Static objects in environment (specified by user)
 - Create CLI application
   - Allows to display information per track
@@ -19,7 +19,7 @@ Use joint probabilistic data association algorithms to track multiple obects.
   - Abstract model should also specify which values can be logged
   - Support non-linear models
   - Model matrices should have parameters like time delta
-- Path creation and deletion
+- Track creation and deletion
   - Several methods to perform this
   - Probably extend JPDA to JIPDA
 

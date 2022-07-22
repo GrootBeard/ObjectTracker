@@ -32,10 +32,11 @@ class TrackVisualizer:
         if clear:
             plot.cla()
 
-        self._render_track_redline(plot, 1)
+        self._render_track_redline(plot, 0)
         plot.scatter([b[0] for b in self._prediction_buffer], [b[1] for b in self._prediction_buffer], color='purple', s=6)
         plot.scatter([b[0] for b in self._actuals_buffer], [b[1] for b in self._actuals_buffer], color='blue', s=10)
-        plot.scatter([b[0] for b in self._considered_mts_buffer], [b[1] for b in self._considered_mts_buffer], color='green', s=8)
+        plot.scatter([b[0] for b in self._considered_mts_buffer], [b[1] for b in self._considered_mts_buffer], color='orange', s=8)
+        plot.scatter([b[0] for b in self._considered_clutter_buffer], [b[1] for b in self._considered_clutter_buffer], color='grey', s=8)
 
     def buffer(self, track: int, epochs: int | list[int], clear_buffer: bool = False):
         if not self._is_initialized:
@@ -53,6 +54,7 @@ class TrackVisualizer:
     def _buffer_track_epoch(self, track: int, epoch: int):
         self._actuals_buffer += [[self.actuals[track][epoch, 0], self.actuals[track][epoch, 1]]]
         self._considered_mts_buffer += [[mt[0], mt[1]] for mt in self.considered_measurements[track][epoch]]
+        self._considered_clutter_buffer += [[mt[0], mt[1]] for mt in self.considered_clutter[track][epoch]]
          
         epoch_predictions = self.loggers[track].epochs[epoch]
         for ep in epoch_predictions[:-1]:
