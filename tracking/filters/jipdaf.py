@@ -66,6 +66,9 @@ class Track:
     def prob_existance(self):
         return self._prob_existance
 
+    @prob_existance.setter(self, value: float):
+        self._prob_existance = value
+
     @property
     def S(self) -> np.ndarray:
         return self.H.dot(self._P).dot(self.H.T) + self.R
@@ -93,6 +96,7 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int]) -> d
             t: association_probabilities[i] / existance_prob for i, t in enumerate(cluster_mts_indices)}
 
         tracks_betas.append(betas_tau)
+        track.prob_existance = existance_prob
     return tracks_betas
 
 
