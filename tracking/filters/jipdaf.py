@@ -49,8 +49,10 @@ class Track:
         self._x = new_x
         self._P = new_P
         for logger in self._loggers:
-            considered_measurements = [] if hist_entry_type is not LogEntryType.UPDATE else [self._last_scan.measurements_list[i-1] for i in self.sel_mts_indices if i != 0]
-            logger.add_entry(self.x, self.P, time, hist_entry_type, considered_measurements)
+            considered_measurements = [] if hist_entry_type is not LogEntryType.UPDATE else [
+                self._last_scan.measurements_list[i-1] for i in self.sel_mts_indices if i != 0]
+            logger.add_entry(self.x, self.P, time,
+                             hist_entry_type, considered_measurements)
 
     @property
     def x(self):
@@ -72,27 +74,31 @@ class Track:
         self._loggers.append(hist)
 
 
-def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int]):
+def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int]) -> dict:
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
-        association_probabilities = [_calculate_association_prob(cluster_tracks, tau, i, assignments) for i in cluster_mts_indices]
+        association_probabilities = [_calculate_association_prob(
+            cluster_tracks, tau, i, assignments) for i in cluster_mts_indices]
         weight = sum(association_probabilities)
-        association_probabilities = [ap / weight for ap in association_probabilities] if weight > 0 else [0]*len(association_probabilities)
+        association_probabilities = [
+            ap / weight for ap in association_probabilities] if weight > 0 else [0]*len(association_probabilities)
 
-        existance_prob = ((1-track.prob_gate*track*track.prob_detection) * track.prob_existance) / (1-track.prob_gate*track.prob_detection*track.prob_existance) * association_probabilities[0]
+        existance_prob = ((1-track.prob_gate*track*track.prob_detection) * track.prob_existance) / (
+            1-track.prob_gate*track.prob_detection*track.prob_existance) * association_probabilities[0]
         if len(association_probabilities) > 1:
             existance_prob += sum([association_probabilities[1:]])
 
-        betas_tau = {t: association_probabilities[i] / existance_prob for i, t in enumerate(cluster_mts_indices)} 
+        betas_tau = {
+            t: association_probabilities[i] / existance_prob for i, t in enumerate(cluster_mts_indices)}
 
         tracks_betas.append(betas_tau)
     return tracks_betas
 
 
-def _calculate_association_prob(cluster_tracks, tau, mt_index, assignments):
+def _calculate_association_prob(cluster_tracks: list[Track], tau: int, mt_index: int, assignments: list[int]) -> float:
     tau_i_events = _generate_tau_i_events(tau, mt_index, assignments)
-    return sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in tau_i_events) 
+    return sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in tau_i_events)
 
 
 def _lookup_event_track_weight(track: Track, mt_index: int) -> float:
@@ -101,7 +107,7 @@ def _lookup_event_track_weight(track: Track, mt_index: int) -> float:
     return 1 - track.prob_gate * track.prob_detection * track.prob_existance
 
 
-def _generate_tau_i_events(t_index, mt_index, assignments) -> list[list[int]]:
+def _generate_tau_i_events(t_index: int, mt_index: int, assignments: list[int]) -> list[list[int]]:
     M = assignments.copy()
     M.pop(t_index)
     u = [] if mt_index == 0 else [mt_index]
@@ -133,7 +139,7 @@ def _enumerate_events(M, E, u, v, d=0) -> None:
             _enumerate_events(M, E, unew, vnew, d+1)
 
 
-def PDA(track: Track, betas: dict, scan: Scan):
+def PDA(track: Track, betas: dict, scan: Scan) -> None:
     keys = list(betas.keys())
     keys.pop(0)
     if not keys:

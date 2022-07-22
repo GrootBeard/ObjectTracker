@@ -47,8 +47,10 @@ class Track:
         self._x = new_x
         self._P = new_P
         for logger in self._loggers:
-            considered_measurements = [] if hist_entry_type is not LogEntryType.UPDATE else [self._last_scan.measurements_list[i-1] for i in self.sel_mts_indices if i != 0]
-            logger.add_entry(self.x, self.P, time, hist_entry_type, considered_measurements)
+            considered_measurements = [] if hist_entry_type is not LogEntryType.UPDATE else [
+                self._last_scan.measurements_list[i-1] for i in self.sel_mts_indices if i != 0]
+            logger.add_entry(self.x, self.P, time,
+                             hist_entry_type, considered_measurements)
 
     @property
     def x(self):
@@ -71,9 +73,10 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int]):
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
         betas_t = {}
-        for i in cluster_mts_indices: 
+        for i in cluster_mts_indices:
             t_i_events = _generate_tau_i_events(tau, i, assignments)
-            beta_i = sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in t_i_events)
+            beta_i = sum(np.prod([_lookup_event_track_weight(
+                cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in t_i_events)
             betas_t[i] = beta_i
         # TODO: normalize betas
         total_weight = np.sum(list(betas_t.values()))
