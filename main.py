@@ -107,7 +107,7 @@ def main():
             for clus in clusters:
                 betas = track_betas(clus.tracks, clus.mts_indices)
 
-                for t, track in enumerate(clus.mts_indices):
+                for t, track in enumerate(clus.tracks):
                     PDA(track, betas[t], working_scans[0])
 
             working_scans.pop(0)
