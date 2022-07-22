@@ -105,10 +105,9 @@ def main():
              
             clusters = build_clusters(tracks)
             for clus in clusters:
-                if len(clus.tracks) > 1:
-                    print(f"Multiple tracks in cluster: {len(clus.tracks)}")
                 betas = track_betas(clus.tracks, clus.mts_indices)
-                for t, track in enumerate(clus.tracks):
+
+                for t, track in enumerate(clus.mts_indices):
                     PDA(track, betas[t], working_scans[0])
 
             working_scans.pop(0)

@@ -21,3 +21,5 @@ Use joint probabilistic data association algorithms to track multiple obects.
   - Model matrices should have parameters like time delta
 - Track creation and deletion
   - Several methods to perform this
+  - Probably extend JPDA to JIPDA
+
