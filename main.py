@@ -36,17 +36,15 @@ def main():
     TMAX = 500
 
     nodes = [
-         NodeCollection(np.array([[-400, -100], [400,  100]]), [0, TMAX]),
+         # NodeCollection(np.array([[-400, -100], [400,  100]]), [0, TMAX]),
          NodeCollection(np.array([[-400, 100],  [400, -100]]), [0, TMAX]),
          NodeCollection(np.array([[-2000, 0], [2000, 0]]), [0, TMAX]),
          NodeCollection(np.array([[0, 2000], [0, -2000]]), [0, TMAX]),
     ]
-    # nodes = [
-    #      # NodeCollection(np.array([[-1000, -1000], [-800, -500], [-200, 200], [500, 800], [1000,  1000]]), np.linspace(0, TMAX, 5)),
-    #      NodeCollection(np.array([[-1000, 0], [1000, 0]]), [0, TMAX])
-    # ]
+    node = NodeCollection(np.array([[-400, -100], [-200, 25], [0, 0], [200, -25], [400, 100]]), np.linspace(0, TMAX, 5)) 
     factory = PathFactory()
     paths = factory.create(nodes, LinearInterpolator)
+    paths += factory.create([node], SplineInterpolator) 
 
     initial_states = [
         np.array([-400, 1.0,  -100, .0]),
@@ -62,8 +60,8 @@ def main():
     nprobes = 200
     probexy = np.zeros(nprobes)
     probetimes = np.linspace(0.0, TMAX-0.1, nprobes)
-    radar = RadarGenerator(paths, 0.0, 1)
-    clutter_model = PoissonClutter([-250, 250, -250, 250], 0.01)
+    radar = RadarGenerator(paths, 0.1, 1)
+    clutter_model = PoissonClutter([-250, 250, -250, 250], 0.0008)
     # clutter_model = None
     scans = radar.make_scans_series(
         np.array([probetimes, probexy, probexy]).T, clutter_model)
@@ -107,7 +105,9 @@ def main():
              
             clusters = build_clusters(tracks)
             for clus in clusters:
-                betas = track_betas(clus.tracks)
+                if len(clus.tracks) > 1:
+                    print(f"Multiple tracks in cluster: {len(clus.tracks)}")
+                betas = track_betas(clus.tracks, clus.mts_indices)
                 for t, track in enumerate(clus.tracks):
                     PDA(track, betas[t], working_scans[0])
 
