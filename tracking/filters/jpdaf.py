@@ -66,12 +66,12 @@ class Track:
         self._loggers.append(hist)
 
 
-def track_betas(cluster_tracks: list[Track]):
+def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int]):
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
         betas_t = {}
-        for i in track.sel_mts_indices:
+        for i in cluster_mts_indices: 
             t_i_events = _generate_tau_i_events(tau, i, assignments)
             beta_i = sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in t_i_events)
             betas_t[i] = beta_i

@@ -101,7 +101,7 @@ def main():
              
             clusters = build_clusters(tracks)
             for clus in clusters:
-                betas = track_betas(clus.tracks)
+                betas = track_betas(clus.tracks, clus.tracks)
                 for t, track in enumerate(clus.tracks):
                     PDA(track, betas[t], working_scans[0])
 
