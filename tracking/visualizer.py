@@ -34,7 +34,8 @@ class TrackVisualizer:
         if clear:
             plot.cla()
 
-        self._render_track_redline(plot, 0)
+        for i, _ in enumerate(self.loggers):
+            self._render_track_redline(plot, i)
         plot.scatter([b[0] for b in self._prediction_buffer],
                      [b[1] for b in self._prediction_buffer],
                      color='purple', s=6)
