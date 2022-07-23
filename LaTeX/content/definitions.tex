@@ -4,7 +4,7 @@ Vectors are indicated with bold lower-case letters and matrices are indicated wi
 
 A multivariate, normally-distributed, random variable $\mathbf z$ with mean $\mathbf \mu$ and covariance matrix $\mathbf \Sigma$ is denoted as
 \begin{equation}
-    \mathcal N(\mathbf z; \bm \mu, \mathbf \Sigma) = \frac{1}{\sqrt{|2\pi \mathbf \Sigma|}}e^{-(\mathbf z - \bm{\mu})^\intercal \mathbf \Sigma (\mathbf z - \bm \mu)/2}
+    \mathcal N(\mathbf z; \bm \mu, \mathbf \Sigma) = \frac{1}{\sqrt{(2\pi)^{d} \mathbf |\mathbf \Sigma|}}e^{-(\mathbf z - \bm{\mu})^\intercal \mathbf \Sigma^{-1} (\mathbf z - \bm \mu)/2}
 \end{equation}
 
 \subsection{Measurements and sequences}
