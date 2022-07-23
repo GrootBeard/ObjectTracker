@@ -9,10 +9,10 @@ class Track:
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
         self._x = x
         self._P = P
-        self._prob_existence = 0.5
+        self._prob_existence = 0.8
         self.H = H
         self.R = R
-        self.prob_gate = 1
+        self.prob_gate = 0.99999
         self.prob_detection = 0.99
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
@@ -29,15 +29,19 @@ class Track:
     def measurement_selection(self, scan: Scan, g: float) -> None:
         S = self.S
         S_inv = np.linalg.inv(S)
-        norm = 1 / np.sqrt(2 * np.pi * np.linalg.det(S))
+        norm = np.sqrt((2 * np.pi)**len(self.x) * np.linalg.det(S))
+        norm *= self.prob_gate
 
         y = self.H.dot(self._x)
         self.mts_likelihoods = {0: 1}
         self.sel_mts_indices = {0}
         for i_mt, mt in scan.measurements:
             y_ = (mt.z - y).reshape(len(y), 1)
-            if y_.T.dot(S_inv).dot(y_) < g:
-                likelihood = norm * np.exp(-y_.T.dot(S).dot(y_))[0, 0]
+            temp = y_.T.dot(S_inv).dot(y_)[0, 0]
+            if temp < g:
+                likelihood = np.exp(-temp) /   norm
+                print(f'temp: {temp:.4f}, likelihood: {likelihood:.4f}, norm: {norm:.4f}')
+                # likelihood = norm * np.exp(-y_.T.dot(S_inv).dot(y_))
                 self.mts_likelihoods.update({mt.mt_id: likelihood})
                 self.sel_mts_indices.add(mt.mt_id)
             else:
@@ -84,34 +88,29 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], sans
     for tau, track in enumerate(cluster_tracks):
         # print(f'cluster measurement indices: {cluster_mts_indices}')
         # print(f'track pos: {track.x}')
+        print(f'cluster indices: {cluster_mts_indices}')
         association_probabilities = [_calculate_association_prob(
             cluster_tracks, tau, i, assignments) for i in cluster_mts_indices]
 
-        # print(f'assocation probabilities: {association_probabilities}')
         # print(f'weight: {weight}')
 
-        association_probabilities[0] *= ((1 - track.prob_gate * track.prob_detection) * track.prob_existence) / (
-            1 - track.prob_gate * track.prob_detection * track.prob_existence)
         weight = sum(association_probabilities)
         association_probabilities = [
             ap / weight for ap in association_probabilities] if weight > 0 else [0]*len(association_probabilities)
 
-        print(
-            f'assocation probabilities after normalization: {association_probabilities}')
+        association_probabilities[0] *= ((1 - track.prob_gate * track.prob_detection) * track.prob_existence) / (
+            1 - track.prob_gate * track.prob_detection * track.prob_existence)
 
-        if sans_existence:
-            existence_prob = 1
-        else:
-            existence_prob = association_probabilities[0]
-            # existence_prob = ((1 - track.prob_gate * track.prob_detection) * track.prob_existence) / (
-            # 1 - track.prob_gate * track.prob_detection * track.prob_existence) * association_probabilities[0]
-            if len(association_probabilities) > 0:
-                existence_prob += sum(association_probabilities[1:])
+        # print(f'assocation probabilities after normalization: {association_probabilities}')
 
+        # print(f'assocation probabilities after correction: {association_probabilities}')
+
+        existence_prob = 1 if sans_existence else sum(association_probabilities)
+        
         betas_tau = {
             t: association_probabilities[i] / existence_prob for i, t in enumerate(cluster_mts_indices)}
 
-        # print(f'betas: {betas_tau}')
+        print(f'betas: {betas_tau}')
         print(f'existence probability: {existence_prob}')
 
         tracks_betas.append(betas_tau)
