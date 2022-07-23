@@ -9,7 +9,7 @@ class Track:
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
         self._x = x
         self._P = P
-        self._prob_existence = 0.8
+        self._prob_existence = 0.999
         self.H = H
         self.R = R
         self.prob_gate = 0.99999
@@ -24,6 +24,7 @@ class Track:
         new_x = F.dot(self._x)
         new_P = F.dot(self._P).dot(F.T) + Q
         # TODO: Update probability of existence
+        # dt is required to do that
         self.update(new_x, new_P, time, LogEntryType.PREDICTION)
 
     def measurement_selection(self, scan: Scan, g: float) -> None:
@@ -35,13 +36,11 @@ class Track:
         y = self.H.dot(self._x)
         self.mts_likelihoods = {0: 1}
         self.sel_mts_indices = {0}
-        for i_mt, mt in scan.measurements:
+        for _, mt in scan.measurements:
             y_ = (mt.z - y).reshape(len(y), 1)
-            temp = y_.T.dot(S_inv).dot(y_)[0, 0]
-            if temp < g:
-                likelihood = np.exp(-temp) /   norm
-                print(f'temp: {temp:.4f}, likelihood: {likelihood:.4f}, norm: {norm:.4f}')
-                # likelihood = norm * np.exp(-y_.T.dot(S_inv).dot(y_))
+            error_measure = y_.T.dot(S_inv).dot(y_)[0, 0]
+            if error_measure < g:
+                likelihood = np.exp(-error_measure) / norm
                 self.mts_likelihoods.update({mt.mt_id: likelihood})
                 self.sel_mts_indices.add(mt.mt_id)
             else:
@@ -86,13 +85,8 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], sans
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
-        # print(f'cluster measurement indices: {cluster_mts_indices}')
-        # print(f'track pos: {track.x}')
-        print(f'cluster indices: {cluster_mts_indices}')
         association_probabilities = [_calculate_association_prob(
             cluster_tracks, tau, i, assignments) for i in cluster_mts_indices]
-
-        # print(f'weight: {weight}')
 
         weight = sum(association_probabilities)
         association_probabilities = [
@@ -101,20 +95,15 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], sans
         association_probabilities[0] *= ((1 - track.prob_gate * track.prob_detection) * track.prob_existence) / (
             1 - track.prob_gate * track.prob_detection * track.prob_existence)
 
-        # print(f'assocation probabilities after normalization: {association_probabilities}')
-
-        # print(f'assocation probabilities after correction: {association_probabilities}')
-
         existence_prob = 1 if sans_existence else sum(association_probabilities)
         
         betas_tau = {
             t: association_probabilities[i] / existence_prob for i, t in enumerate(cluster_mts_indices)}
 
-        print(f'betas: {betas_tau}')
-        print(f'existence probability: {existence_prob}')
-
-        tracks_betas.append(betas_tau)
+        print(f'probability of existence: {existence_prob}')
         track.prob_existence = existence_prob
+        
+        tracks_betas.append(betas_tau)
     return tracks_betas
 
 
@@ -125,7 +114,7 @@ def _calculate_association_prob(cluster_tracks: list[Track], tau: int, mt_index:
 
 def _lookup_event_track_weight(track: Track, mt_index: int) -> float:
     if mt_index > 0:
-        return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence
+        return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 0.0015
     return 1 - track.prob_gate * track.prob_detection * track.prob_existence
 
 

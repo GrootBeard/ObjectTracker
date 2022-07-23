@@ -1,14 +1,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from tracking.filters.jpdaf import Cluster, Track
+from tracking.filters.jipdaf import Cluster, Track
 from tracking.util.metrics import LogEntry, LogEntryType, TrackLog
 
 
 class TrackVisualizer:
     __slots__ = ("loggers", "logger_index", "actuals", "considered_measurements", "redline",
                  "considered_clutter", "predictions", "colors", "_actuals_buffer", "_prediction_buffer",
-                 "_considered_mts_buffer", "_considered_clutter_buffer", "_is_initialized", "_buffered_epochs")
+                 "_considered_mts_buffer", "_considered_clutter_buffer", "_is_initialized", "_buffered_epochs",
+                 "red_lines_to_render")
 
     def __init__(self, logger_index: int = 0):
         self.logger_index = logger_index
@@ -25,6 +26,7 @@ class TrackVisualizer:
         self._init_predictions()
         self._clear_buffers()
         self._is_initialized = True
+        self.red_lines_to_render = []
 
     def render(self, plot: plt.Axes, clear: bool = True):
         if not self._is_initialized:
@@ -34,7 +36,7 @@ class TrackVisualizer:
         if clear:
             plot.cla()
 
-        for i, _ in enumerate(self.loggers):
+        for i in self.red_lines_to_render:
             self._render_track_redline(plot, i)
         plot.scatter([b[0] for b in self._prediction_buffer],
                      [b[1] for b in self._prediction_buffer],
