@@ -58,7 +58,7 @@ def main():
     probexy = np.zeros(nprobes)
     probetimes = np.linspace(0.0, TMAX-0.1, nprobes)
     radar = RadarGenerator(paths, 0.3, 1)
-    clutter_model = PoissonClutter([-400, 400, -250, 250], 0.0015)
+    clutter_model = PoissonClutter([-500, 400, -250, 250], 0.0003)
     scans = radar.make_scans_series(
         np.array([probetimes, probexy, probexy]).T, clutter_model)
 
@@ -105,8 +105,9 @@ def main():
             for clus in clusters:
                 # if len(clus.tracks) > 0:
                 # print(f'tracks in cluster: {len(clus.tracks)}')
+
                 betas = track_betas(
-                    clus.tracks, clus.mts_indices, sans_existence=False)
+                    clus.tracks, clus.mts_indices, sans_existence=False, clutter_density=clus.avg_clutter_density())
 
                 for t, track in enumerate(clus.tracks):
                     PDA(track, betas[t], working_scans[0])

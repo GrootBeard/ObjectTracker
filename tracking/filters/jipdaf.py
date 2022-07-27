@@ -1,9 +1,10 @@
 import numpy as np
+from scipy.special import gamma
 from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 
 class Track:
-    __slots__ = ("_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection",
+    __slots__ = ("_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection", "gate_size",
                  "mts_likelihoods", "sel_mts_indices", "_loggers", "_last_scan")
 
     def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
@@ -12,8 +13,9 @@ class Track:
         self._prob_existence = 0.999
         self.H = H
         self.R = R
-        self.prob_gate = 0.99999
+        self.prob_gate = 0.99
         self.prob_detection = 0.99
+        self.gate_size = 0
         self.mts_likelihoods = {}
         self.sel_mts_indices = set()
         self._last_scan = None
@@ -28,6 +30,7 @@ class Track:
         self.update(new_x, new_P, time, LogEntryType.PREDICTION)
 
     def measurement_selection(self, scan: Scan, g: float) -> None:
+        self.gate_size = g
         S = self.S
         S_inv = np.linalg.inv(S)
         norm = np.sqrt((2 * np.pi)**len(self.x) * np.linalg.det(S))
@@ -39,7 +42,7 @@ class Track:
         for _, mt in scan.measurements:
             y_ = (mt.z - y).reshape(len(y), 1)
             error_measure = y_.T.dot(S_inv).dot(y_)[0, 0]
-            if error_measure < g:
+            if error_measure < self.gate_size:
                 likelihood = np.exp(-error_measure) / norm
                 self.mts_likelihoods.update({mt.mt_id: likelihood})
                 self.sel_mts_indices.add(mt.mt_id)
@@ -77,16 +80,23 @@ class Track:
     def S(self) -> np.ndarray:
         return self.H.dot(self._P).dot(self.H.T) + self.R
 
+    def gate_volume(self):
+        dim = len(self.x)
+        return np.power(np.pi, dim/2) * np.sqrt(self.gate_size * np.linalg.det(self.S)) / gamma(dim/2 + 1) 
+
+    def selected_mts_count(self):
+        return len(self.sel_mts_indices) - 1
+
     def add_logger(self, hist: TrackLog):
         self._loggers.append(hist)
 
 
-def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], sans_existence: bool = False) -> dict:
+def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], clutter_density: float, sans_existence: bool = False) -> dict:
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
         association_probabilities = [_calculate_association_prob(
-            cluster_tracks, tau, i, assignments) for i in cluster_mts_indices]
+            cluster_tracks, tau, i, assignments, clutter_density) for i in cluster_mts_indices]
 
         weight = sum(association_probabilities)
         association_probabilities = [
@@ -101,20 +111,22 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], sans
             t: association_probabilities[i] / existence_prob for i, t in enumerate(cluster_mts_indices)}
 
         print(f'probability of existence: {existence_prob}')
+        print(f'clutter density: {clutter_density}')
         track.prob_existence = existence_prob
         
         tracks_betas.append(betas_tau)
     return tracks_betas
 
 
-def _calculate_association_prob(cluster_tracks: list[Track], tau: int, mt_index: int, assignments: list[int]) -> float:
+def _calculate_association_prob(cluster_tracks: list[Track], tau: int, mt_index: int, assignments: list[int], clutter_density: float) -> float:
     tau_i_events = _generate_tau_i_events(tau, mt_index, assignments)
-    return sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt) for t, mt in enumerate(e)]) for e in tau_i_events)
+    return sum(np.prod([_lookup_event_track_weight(cluster_tracks[t], mt, clutter_density) for t, mt in enumerate(e)]) for e in tau_i_events)
 
 
-def _lookup_event_track_weight(track: Track, mt_index: int) -> float:
+def _lookup_event_track_weight(track: Track, mt_index: int, clutter_density: float) -> float:
     if mt_index > 0:
-        return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 0.0015
+        return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / clutter_density
+        # return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 0.0003 
     return 1 - track.prob_gate * track.prob_detection * track.prob_existence
 
 
@@ -195,8 +207,27 @@ class Cluster:
     def tracks(self):
         return self._tracks
 
+    def cluster_selection_area(self) -> float:
+        num_cluster_measurements = len(self.mts_indices) - 1
+        if num_cluster_measurements < 1:
+            return 1.0
+        
+        track_selection_areas = [track.gate_volume() for track in self.tracks]
+        overlap_ratio = num_cluster_measurements / sum(track.selected_mts_count() for track in self.tracks)        
+
+        return max(sum(track_selection_areas) * overlap_ratio, max(track_selection_areas))
+
+    def avg_clutter_density(self):
+        avg_clutter_mts = 0.0
+        for i in list(self.mts_indices)[1:]:
+            avg_clutter_mts += np.prod([1 - tau.prob_gate * tau.prob_detection * tau.prob_existence * tau.mts_likelihoods[i] / sum(list(tau.mts_likelihoods.values())[1:])
+                    for tau in self.tracks]) 
+            
+        return avg_clutter_mts / self.cluster_selection_area()
+        
 
 def build_clusters(tracks: list[Track]) -> list[Cluster]:
+    # sourcery skip: instance-method-first-arg-name
     clusters = []
     for t in tracks:
         overlap = False
