@@ -90,7 +90,7 @@ def main():
 #           Q1_ = v.dot(v_.T)
 #           Q_ = np.kron(np.eye(2), Q1_)
 
-            F1_ = np.array([[1, dt], [0, 1]])
+            F1_ = np.array([[1, dt_], [0, 1]])
             F_ = np.kron(np.eye(2), F1_)
             v_ = np.array([dt_**2 / 2, dt_]).reshape(2, 1)
             Q1_ = v_.dot(v_.T)
