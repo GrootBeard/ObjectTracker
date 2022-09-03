@@ -60,7 +60,7 @@ def main():
             time = working_scans[0].time
 
             manager.update_tracks(working_scans[0], time)
-            
+             
 
 if __name__ == "__main__":
     main()
