@@ -4,10 +4,10 @@ from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 
 class Track:
-    __slots__ = ("_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection", "gate_size",
+    __slots__ = ("uid", "_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection", "gate_size",
                  "mts_likelihoods", "sel_mts_indices", "_loggers", "_last_scan")
 
-    def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray) -> None:
+    def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray, uid=-1) -> None:
         self._x = x
         self._P = P
         self._prob_existence = 0.999
@@ -20,6 +20,7 @@ class Track:
         self.sel_mts_indices = set()
         self._last_scan = None
 
+        self.uid = uid
         self._loggers = []
 
     def predict(self, F: np.ndarray, Q: np.ndarray, time: float) -> None:
