@@ -39,13 +39,17 @@ class TrackManager:
             for tau, track in enumerate(clus.tracks):
                 PDA(track, betas[tau], scan)
 
-        self.log_epoch(time=scan.time, measurement=scan.measurements, update=True)
+        self.log_epoch(
+            time=scan.time, measurement=scan.measurements, update=True)
 
     def log_epoch(self, time: float, measurements, update: bool) -> None:
         self.logger.log_epoch(time=time, active_tracks=self.tracks,
                               measurements=measurements, is_update=update)
 
-    def initialize_track(self, mean, cov, ms_mat, ms_uncertainty_mat) -> None:
+    def initialize_track(self, mean, 
+            cov=np.eye(4),
+            ms_mat=np.array([[1, 0,  0, 0], [0, 0, 1, 0]]),
+            ms_uncertainty_mat=np.diag([1, 1])) -> None:
         self._tracks.append(
             Track(mean, cov, ms_mat, ms_uncertainty_mat, uid=self.track_id_counter))
         self.track_id_counter += 1
@@ -75,7 +79,7 @@ class Logger:
 
         epoch = LogEpoch(time=time, track_data=track_data,
                          is_update=is_update, measurements=measurements)
-                         
+
         if is_update:
             for track in epoch.tracks:
                 if track not in self.epochs_per_track.keys():
@@ -136,6 +140,7 @@ class TrackingVisualizer:
                               "epoch_max": 0,
                               "excluded_tracks": [],
                               "fixed_tracks": []}
+        self.num_rendered_epochs = 5
 
     def render(self, plot):
         tracks_in_rendered_epochs = (self.log.tracks_in_epoch(epoch) for epoch in range(
@@ -185,7 +190,7 @@ class TrackingVisualizer:
         for ep in set(track_epochs).intersection(set(range(epoch_min, epoch_max+1))):
             actuals.append(
                 self.log.epochs[ep].track_data[track_uid]['position'])
-             
+
             measurements[ep] = self.log.epochs[ep].track_data[track_uid]["selected_measurements"]
 
             predictions.extend(child_ep.track_data[track_uid]['position']
@@ -196,17 +201,32 @@ class TrackingVisualizer:
     def clear(self):
         pass
 
-    def prepare(self):
-        pass
+    def advance_epoch(self) -> bool:
+        if self.render_config['epoch_max'] < len(self.log.epochs):
+            self.render_config['epoch_max'] += 1
+        else:
+            return False
 
-    def add_epoch(self, epoch: int):
-        pass
+        if self.render_config['epoch_max'] > self.num_rendered_epochs:
+            self.render_config['epoch_min'] += 1
 
-    def add_track(self, track: int):
-        pass
+        return True
 
-    def remove_track(self, track: int):
-        pass
+    def retread_epoch(self):
+        if self.render_config['epoch_min'] > 0:
+            self.render_config['epoch_min'] -= 1
+        else:
+            return False
 
-    def remove_epoch(self, epoch: int):
-        pass
+        if self.render_config['epoch_max'] > self.num_rendered_epochs:
+            self.render_config['epoch_max'] += 1
+
+        return True
+
+    def set_number_rendered_epochs(self, num_epochs: int):
+        if num_epochs < 1:
+            return
+
+        self.num_rendered_epochs = num_epochs
+        self.render_config['epoch_min'] = min(
+            0, self.render_config['set_number_rendered_epochs'] - self.num_rendered_epochs)
