@@ -79,7 +79,7 @@ class Scan:
 
     @property
     def measurements(self):
-        return self._measurements.items()
+        return self._measurements
 
     @property
     def measurements_list(self):

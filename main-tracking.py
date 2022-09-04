@@ -56,11 +56,27 @@ def main():
         manager.predict_tracks(time, dt)
         
         if time+dt >= working_scans[0].time:
-            dt_ = working_scans[0].time - time
             time = working_scans[0].time
 
             manager.update_tracks(working_scans[0], time)
              
+            working_scans.pop(0)
+            if len(working_scans) == 0:
+                print("Processed all scans")
+                break
+        
+    renderer = TrackingVisualizer(manager.logger)
+    plt.ion()
+    plt.figure()
+    plot = plt.subplot(1, 2, 1)
+     
+    renderer.set_number_rendered_epochs(50)
+    for i in range(145):
+        renderer.advance_epoch()
+    renderer.render(plot)
+
+    plt.show(block=True)
+    
 
 if __name__ == "__main__":
     main()

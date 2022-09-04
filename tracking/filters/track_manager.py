@@ -1,7 +1,7 @@
 import numpy as np
 
-from jipdaf import Track, build_clusters, track_betas, PDA
-from util.metrics import Scan, Measurement
+from tracking.filters.jipdaf import Track, build_clusters, track_betas, PDA
+from tracking.util.metrics import Scan, Measurement
 
 
 class TrackManager:
@@ -20,16 +20,16 @@ class TrackManager:
 
         for track in self._tracks:
             track.predict(F=F, Q=Q, time=time)
-            track.prob_existence *= 1-dt/100
+            track.prob_existence *= 1-dt/1000
 
-        self.log_epoch(time=time+dt, update=False)
+        self.log_epoch(time=time+dt, measurements_map=None, update=False)
 
     def update_tracks(self, scan: Scan, time: float) -> None:
         dt = scan.time - time
         self.predict_tracks(time, dt)
 
         for track in self._tracks:
-            track.measurement_selection(scan, 30)
+            track.measurement_selection(scan, 50)
 
         clusters = build_clusters(self._tracks)
         for clus in clusters:
@@ -40,11 +40,11 @@ class TrackManager:
                 PDA(track, betas[tau], scan)
 
         self.log_epoch(
-            time=scan.time, measurement=scan.measurements, update=True)
+            time=scan.time, measurements_map=scan.measurements, update=True)
 
-    def log_epoch(self, time: float, measurements, update: bool) -> None:
-        self.logger.log_epoch(time=time, active_tracks=self.tracks,
-                              measurements=measurements, is_update=update)
+    def log_epoch(self, time: float, measurements_map: dict, update: bool) -> None:
+        self.logger.log_epoch(time=time, active_tracks=self._tracks,
+                              measurements_map=measurements_map, is_update=update)
 
     def initialize_track(self, mean, 
             cov=np.eye(4),
@@ -68,7 +68,7 @@ class Logger:
         self.prediction_backlog = []
         self.epochs_per_track = {}
 
-    def log_epoch(self, time: float, active_tracks: list(Track), measurements: list(Measurement), is_update: bool) -> None:
+    def log_epoch(self, time: float, active_tracks: list[Track], measurements_map: dict, is_update: bool) -> None:
         track_data = {track.uid: {
             'selected_measurements': [track._last_scan.measurements_list[i - 1].uid for i in track.sel_mts_indices if i != 0]
             if is_update else [],
@@ -78,13 +78,13 @@ class Logger:
             for track in active_tracks}
 
         epoch = LogEpoch(time=time, track_data=track_data,
-                         is_update=is_update, measurements=measurements)
+                         is_update=is_update, measurements_map=measurements_map)
 
         if is_update:
             for track in epoch.tracks:
                 if track not in self.epochs_per_track.keys():
                     self.epochs_per_track.update({track: []})
-                self.epochs_per_track[track].append(len(self.epochs)-1)
+                self.epochs_per_track[track].append(len(self.epochs))
 
             epoch.set_child_epochs(self.prediction_backlog)
             self.prediction_backlog = []
@@ -115,10 +115,10 @@ class Logger:
 
 class LogEpoch:
 
-    def __init__(self, time: float, track_data: dict, is_update: bool, measurements: dict = None):
+    def __init__(self, time: float, track_data: dict, is_update: bool, measurements_map: dict = None):
         self.track_data = track_data
         self.is_update = is_update
-        self.measurements = measurements
+        self.measurements_map = measurements_map
         self.child_epochs = []
 
     @property
@@ -143,9 +143,12 @@ class TrackingVisualizer:
         self.num_rendered_epochs = 5
 
     def render(self, plot):
-        tracks_in_rendered_epochs = (self.log.tracks_in_epoch(epoch) for epoch in range(
-            self.render_config["epoch_min"], self.render_config["epoch_max"]+1))
-        tracks_in_rendered_epochs = tracks_in_rendered_epochs.subtract(
+        tracks_in_rendered_epochs = []
+        for ep in range(self.render_config["epoch_min"], self.render_config["epoch_max"]+1):
+            tracks_in_rendered_epochs.extend(self.log.tracks_in_epoch(ep))
+        # {self.log.tracks_in_epoch(epoch) for epoch in range(
+            # self.render_config["epoch_min"], self.render_config["epoch_max"]+1)}
+        tracks_in_rendered_epochs = set(tracks_in_rendered_epochs).difference(
             set(self.render_config["excluded_tracks"]))
 
         actuals = []
@@ -155,18 +158,18 @@ class TrackingVisualizer:
 
         for track in tracks_in_rendered_epochs:
             rendered_track = self.render_track(
-                track, self.render_config["epoch_min"], self.render_config["epoch_min"])
+                track, self.render_config["epoch_min"], self.render_config["epoch_max"])
 
             # red line has to be rendered here
 
             actuals.extend(rendered_track['actuals'])
             predictions.extend(rendered_track['predictions'])
 
-            for ep, mts in rendered_track['measurements']:
+            for ep, mts in rendered_track['measurements'].items():
                 measurements.extend(
-                    [self.log.epochs[ep][mt].z for mt in mts if not self.log.epochs[ep][mt].is_clutter])
+                    [self.log.epochs[ep].measurements_map[mt].z for mt in mts if not self.log.epochs[ep].measurements_map[mt].is_clutter])
                 clutter_mts.extend(
-                    [self.log.epochs[ep][mt].z for mt in mts if self.log.epochs[ep][mt].is_clutter])
+                    [self.log.epochs[ep].measurements_map[mt].z for mt in mts if self.log.epochs[ep].measurements_map[mt].is_clutter])
 
         plot.scatter([b[0] for b in measurements],
                      [b[1] for b in measurements],
@@ -187,11 +190,14 @@ class TrackingVisualizer:
         measurements = {}
 
         track_epochs = self.log.epochs_per_track[track_uid]
+
         for ep in set(track_epochs).intersection(set(range(epoch_min, epoch_max+1))):
             actuals.append(
                 self.log.epochs[ep].track_data[track_uid]['position'])
 
+            # measurements[ep] = self.log.epochs[ep].track_data[track_uid]["selected_measurements"]
             measurements[ep] = self.log.epochs[ep].track_data[track_uid]["selected_measurements"]
+
 
             predictions.extend(child_ep.track_data[track_uid]['position']
                                for child_ep in self.log.epochs[ep].child_epochs)
@@ -202,14 +208,12 @@ class TrackingVisualizer:
         pass
 
     def advance_epoch(self) -> bool:
-        if self.render_config['epoch_max'] < len(self.log.epochs):
-            self.render_config['epoch_max'] += 1
-        else:
+        if self.render_config['epoch_max'] >= len(self.log.epochs):
             return False
-
+        self.render_config['epoch_max'] += 1
+        
         if self.render_config['epoch_max'] > self.num_rendered_epochs:
             self.render_config['epoch_min'] += 1
-
         return True
 
     def retread_epoch(self):
@@ -219,7 +223,7 @@ class TrackingVisualizer:
             return False
 
         if self.render_config['epoch_max'] > self.num_rendered_epochs:
-            self.render_config['epoch_max'] += 1
+            self.render_config['epoch_max'] -= 1
 
         return True
 
@@ -228,5 +232,6 @@ class TrackingVisualizer:
             return
 
         self.num_rendered_epochs = num_epochs
-        self.render_config['epoch_min'] = min(
-            0, self.render_config['set_number_rendered_epochs'] - self.num_rendered_epochs)
+        self.render_config['epoch_min'] = max(
+            0, self.render_config['epoch_max'] - self.num_rendered_epochs)
+

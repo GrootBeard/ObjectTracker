@@ -40,15 +40,15 @@ class Track:
         y = self.H.dot(self._x)
         self.mts_likelihoods = {0: 1}
         self.sel_mts_indices = {0}
-        for _, mt in scan.measurements:
+        for _, mt in scan.measurements.items():
             y_ = (mt.z - y).reshape(len(y), 1)
             error_measure = y_.T.dot(S_inv).dot(y_)[0, 0]
             if error_measure < self.gate_size:
                 likelihood = np.exp(-error_measure) / norm
-                self.mts_likelihoods.update({mt.mt_id: likelihood})
-                self.sel_mts_indices.add(mt.mt_id)
+                self.mts_likelihoods.update({mt.uid: likelihood})
+                self.sel_mts_indices.add(mt.uid)
             else:
-                self.mts_likelihoods.update({mt.mt_id: 0})
+                self.mts_likelihoods.update({mt.uid: 0})
 
         self._last_scan = scan
 
