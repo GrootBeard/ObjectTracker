@@ -35,14 +35,14 @@ def main():
     probexy = np.zeros(nprobes)
     probetimes = np.linspace(0.0, TMAX-0.1, nprobes)
     radar = RadarGenerator(paths, 0.3, 1)
-    clutter_model = PoissonClutter([-500, 400, -250, 250], 0.0003)
+    clutter_model = PoissonClutter([-500, 400, -250, 250], 0.00001)
     scans = radar.make_scans_series(
         np.array([probetimes, probexy, probexy]).T, clutter_model)
 
     # tracks = [Track(state, P, H, R) for state in initial_states]
     manager = TrackManager()
-    for state in initial_states:
-        manager.initialize_track(state)
+    # for state in initial_states:
+    #     manager.initialize_track(state)
 
     nsteps = 60000
     time = 0
@@ -59,7 +59,9 @@ def main():
             time = working_scans[0].time
 
             manager.update_tracks(working_scans[0], time)
-             
+            manager.one_point_init(vmax=3, p0=0.8)
+            manager.delete_false_tracks(.03)
+            
             working_scans.pop(0)
             if len(working_scans) == 0:
                 print("Processed all scans")

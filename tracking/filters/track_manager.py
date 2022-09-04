@@ -10,6 +10,7 @@ class TrackManager:
         self._tracks = []
         self.track_id_counter = 0
         self.logger = Logger()
+        self.last_scan = None
 
     def predict_tracks(self, time, dt: float) -> None:
         F1 = np.array([[1, dt], [0, 1]])
@@ -28,11 +29,14 @@ class TrackManager:
         dt = scan.time - time
         self.predict_tracks(time, dt)
 
+        print('updating tracks')
+        
         for track in self._tracks:
             track.measurement_selection(scan, 50)
 
         clusters = build_clusters(self._tracks)
         for clus in clusters:
+            print(f'number of tracks in cluster: {len(clus.tracks)}')
             betas = track_betas(clus.tracks, clus.mts_indices,
                                 sans_existence=False, clutter_density=clus.avg_clutter_density())
 
@@ -41,6 +45,8 @@ class TrackManager:
 
         self.log_epoch(
             time=scan.time, measurements_map=scan.measurements, update=True)
+
+        self.last_scan = scan
 
     def log_epoch(self, time: float, measurements_map: dict, update: bool) -> None:
         self.logger.log_epoch(time=time, active_tracks=self._tracks,
@@ -54,12 +60,44 @@ class TrackManager:
             Track(mean, cov, ms_mat, ms_uncertainty_mat, uid=self.track_id_counter))
         self.track_id_counter += 1
 
-    def one_point_init(self):
-        pass
+    def one_point_init(self, vmax: float, p0: float):
+        assigments = self.track_assigned_measurements()
+
+        for ms, tracks in assigments.items():
+            if len(tracks) > 0:
+                print(f'measurement: {ms}, assigned tracks: {tracks}')
+                continue
+
+            pos = np.array([self.last_scan.measurements[ms].z[0],0.0, self.last_scan.measurements[ms].z[1], 0.0])
+            # print(pos)
+            cov = np.diag([1.0, vmax**2/2.0, 1.0, vmax**2/2.0])
+            
+            existence_prob = p0
+
+            self.initialize_track(pos, cov)
 
     def two_point_init(self):
         pass
 
+    def track_assigned_measurements(self):
+        assignments = {mt: [] for mt in self.last_scan.measurements.keys()}
+        for track in self._tracks:
+            for sel_mt in track.sel_mts_indices.difference({0}):
+                assignments[sel_mt].append(track.uid)
+
+        return assignments
+
+    def delete_false_tracks(self, existence_threshold: float) -> None:
+        print('track deletion')
+        for track in self._tracks:
+            if track.prob_existence < existence_threshold:
+                self._tracks.remove(track)
+        # indices_to_delete = [i for i in range(len(self._tracks)) if self._tracks[i].prob_existence < existence_threshold]
+
+        # for i in indices_to_delete:
+        #     print(f'deleting track {i}')
+        #     self._tracks.pop(i)
+            
 
 class Logger:
 
@@ -92,18 +130,6 @@ class Logger:
 
         else:
             self.prediction_backlog.append(epoch)
-
-    def buffer_epoch(self, epoch: int) -> dict:
-        # return {
-        #         ''
-        #     }
-        pass
-
-    def buffer_track(self, track_uid) -> dict:
-        # return {'actuals': []}
-        # for ep in self.epochs_per_track[track_uid]:
-        # pass
-        pass
 
     def tracks_in_epoch(self, epoch: int) -> list[int]:
         if epoch < 0 or epoch >= len(self.epochs):
@@ -146,8 +172,7 @@ class TrackingVisualizer:
         tracks_in_rendered_epochs = []
         for ep in range(self.render_config["epoch_min"], self.render_config["epoch_max"]+1):
             tracks_in_rendered_epochs.extend(self.log.tracks_in_epoch(ep))
-        # {self.log.tracks_in_epoch(epoch) for epoch in range(
-            # self.render_config["epoch_min"], self.render_config["epoch_max"]+1)}
+        
         tracks_in_rendered_epochs = set(tracks_in_rendered_epochs).difference(
             set(self.render_config["excluded_tracks"]))
 
@@ -195,9 +220,7 @@ class TrackingVisualizer:
             actuals.append(
                 self.log.epochs[ep].track_data[track_uid]['position'])
 
-            # measurements[ep] = self.log.epochs[ep].track_data[track_uid]["selected_measurements"]
             measurements[ep] = self.log.epochs[ep].track_data[track_uid]["selected_measurements"]
-
 
             predictions.extend(child_ep.track_data[track_uid]['position']
                                for child_ep in self.log.epochs[ep].child_epochs)
