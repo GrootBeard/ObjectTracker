@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
@@ -51,6 +52,12 @@ class RadarGenerator:
                     measurements.append(Measurement(
                         np.array([clutter[0], clutter[1]]), scan_id=scan_id, uid=clutter_id, origin_id=-1, is_clutter=True))
                     clutter_id += 1
+
+            # temp stuff to test cluster cut-off
+            random.shuffle(measurements)
+            for i in range(len(measurements)):
+                measurements[i].uid = i+1
+            # end of temp stuff
 
             if measurements:
                 scans.append(

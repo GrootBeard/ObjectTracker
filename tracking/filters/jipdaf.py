@@ -7,10 +7,10 @@ class Track:
     __slots__ = ("uid", "_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection", "gate_size",
                  "mts_likelihoods", "sel_mts_indices", "_loggers", "_last_scan")
 
-    def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray, uid=-1) -> None:
+    def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray, existence_prob=1.0, uid=-1) -> None:
         self._x = x
         self._P = P
-        self._prob_existence = 0.999
+        self._prob_existence = existence_prob
         self.H = H
         self.R = R
         self.prob_gate = 0.99
@@ -83,7 +83,7 @@ class Track:
 
     def gate_volume(self):
         dim = len(self.x)
-        return np.power(np.pi, dim/2) * np.sqrt(self.gate_size * np.linalg.det(self.S)) / gamma(dim/2 + 1) 
+        return np.power(np.pi, dim/2) * np.sqrt(self.gate_size * np.linalg.det(self.S)) / gamma(dim/2 + 1)
 
     def selected_mts_count(self):
         return len(self.sel_mts_indices) - 1
@@ -106,15 +106,16 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], clut
         association_probabilities[0] *= ((1 - track.prob_gate * track.prob_detection) * track.prob_existence) / (
             1 - track.prob_gate * track.prob_detection * track.prob_existence)
 
-        existence_prob = 1 if sans_existence else sum(association_probabilities)
-        
+        existence_prob = 1 if sans_existence else sum(
+            association_probabilities)
+
         betas_tau = {
             t: association_probabilities[i] / existence_prob for i, t in enumerate(cluster_mts_indices)}
 
-        print(f'probability of existence: {existence_prob}')
-        print(f'clutter density: {clutter_density}')
+        # print(f'track uid {track.uid} probability of existence: {existence_prob}')
+        # print(f'clutter density: {clutter_density}')
         track.prob_existence = existence_prob
-        
+
         tracks_betas.append(betas_tau)
     return tracks_betas
 
@@ -127,7 +128,7 @@ def _calculate_association_prob(cluster_tracks: list[Track], tau: int, mt_index:
 def _lookup_event_track_weight(track: Track, mt_index: int, clutter_density: float) -> float:
     if mt_index > 0:
         return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / clutter_density
-        # return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 0.0003 
+        # return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 0.0003
     return 1 - track.prob_gate * track.prob_detection * track.prob_existence
 
 
@@ -212,9 +213,10 @@ class Cluster:
         num_cluster_measurements = len(self.mts_indices) - 1
         if num_cluster_measurements < 1:
             return 1.0
-        
+
         track_selection_areas = [track.gate_volume() for track in self.tracks]
-        overlap_ratio = num_cluster_measurements / sum(track.selected_mts_count() for track in self.tracks)        
+        overlap_ratio = num_cluster_measurements / \
+            sum(track.selected_mts_count() for track in self.tracks)
 
         return max(sum(track_selection_areas) * overlap_ratio, max(track_selection_areas))
 
@@ -222,17 +224,20 @@ class Cluster:
         avg_clutter_mts = 0.0
         for i in list(self.mts_indices)[1:]:
             avg_clutter_mts += np.prod([1 - tau.prob_gate * tau.prob_detection * tau.prob_existence * tau.mts_likelihoods[i] / sum(list(tau.mts_likelihoods.values())[1:])
-                    for tau in self.tracks]) 
-            
-        return avg_clutter_mts / self.cluster_selection_area()
-        
+                                        for tau in self.tracks])
 
-def build_clusters(tracks: list[Track]) -> list[Cluster]:
-    # sourcery skip: instance-method-first-arg-name
+        return avg_clutter_mts / self.cluster_selection_area()
+
+
+def build_clusters(tracks: list[Track], max_cluster_size: int) -> list[Cluster]:
     clusters = []
     for t in tracks:
         overlap = False
         for clus in clusters:
+            if len(clus.tracks) >= max_cluster_size or len(clus.mts_indices) + len(t.sel_mts_indices) > 35:
+                print('cluster is full')
+                continue
+
             if clus.overlap(t.sel_mts_indices):
                 clus.add_track(t)
                 overlap = True

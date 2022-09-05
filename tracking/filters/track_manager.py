@@ -1,7 +1,6 @@
 import numpy as np
-
-from tracking.filters.jipdaf import Track, build_clusters, track_betas, PDA
-from tracking.util.metrics import Scan, Measurement
+from tracking.filters.jipdaf import PDA, Track, build_clusters, track_betas
+from tracking.util.metrics import Measurement, Scan
 
 
 class TrackManager:
@@ -11,6 +10,7 @@ class TrackManager:
         self.track_id_counter = 0
         self.logger = Logger()
         self.last_scan = None
+        self.mts_non_association_probs = {}
 
     def predict_tracks(self, time, dt: float) -> None:
         F1 = np.array([[1, dt], [0, 1]])
@@ -28,17 +28,28 @@ class TrackManager:
     def update_tracks(self, scan: Scan, time: float) -> None:
         dt = scan.time - time
         self.predict_tracks(time, dt)
-        
-        for track in self._tracks:
-            track.measurement_selection(scan, 50)
 
-        clusters = build_clusters(self._tracks)
+        for track in self._tracks:
+            track.measurement_selection(scan, 14)
+
+        clusters = build_clusters(self._tracks, max_cluster_size=9)
+        self.mts_non_association_probs = {mt.uid: 1 for mt in scan.measurements.values()}
+        
         for clus in clusters:
+            print(f'cluster size: {len(clus.tracks)}')
+            print(
+                f'number of selected measurements in cluster: {len(clus.mts_indices)}')
             betas = track_betas(clus.tracks, clus.mts_indices,
                                 sans_existence=False, clutter_density=clus.avg_clutter_density())
 
             for tau, track in enumerate(clus.tracks):
                 PDA(track, betas[tau], scan)
+                
+                for ms_index, beta_tau_i in betas[tau].items():
+                    if ms_index == 0:
+                        continue
+                    self.mts_non_association_probs[ms_index] -= beta_tau_i * track.prob_existence 
+                    # print(f'subtracting {beta_tau_i} * {track.prob_existence} = {beta_tau_i * track.prob_existence }')
 
         self.log_epoch(
             time=scan.time, measurements_map=scan.measurements, update=True)
@@ -49,12 +60,13 @@ class TrackManager:
         self.logger.log_epoch(time=time, active_tracks=self._tracks,
                               measurements_map=measurements_map, is_update=update)
 
-    def initialize_track(self, mean, 
-            cov=np.eye(4),
-            ms_mat=np.array([[1, 0,  0, 0], [0, 0, 1, 0]]),
-            ms_uncertainty_mat=np.diag([1, 1])) -> None:
+    def initialize_track(self, mean,
+                         cov=np.eye(4),
+                         ms_mat=np.array([[1, 0,  0, 0], [0, 0, 1, 0]]),
+                         ms_uncertainty_mat=np.diag([1, 1]),
+                         existence_prob=1.0) -> None:
         self._tracks.append(
-            Track(mean, cov, ms_mat, ms_uncertainty_mat, uid=self.track_id_counter))
+            Track(mean, cov, ms_mat, ms_uncertainty_mat, uid=self.track_id_counter, existence_prob=existence_prob))
         self.track_id_counter += 1
 
     def one_point_init(self, vmax: float, p0: float):
@@ -64,11 +76,12 @@ class TrackManager:
             if len(tracks) > 0:
                 continue
 
-            pos = np.array([self.last_scan.measurements[ms].z[0],0.0, self.last_scan.measurements[ms].z[1], 0.0])
+            pos = np.array([self.last_scan.measurements[ms].z[0],
+                           0.0, self.last_scan.measurements[ms].z[1], 0.0])
             cov = np.diag([1.0, vmax**2/2.0, 1.0, vmax**2/2.0])
-            existence_prob = p0
+            existence_prob = p0 * self.mts_non_association_probs[ms]
 
-            self.initialize_track(pos, cov)
+            self.initialize_track(pos, cov, existence_prob=existence_prob)
 
     def two_point_init(self):
         pass
@@ -92,7 +105,7 @@ class Logger:
     def __init__(self) -> None:
         self.epochs = []
         self.prediction_backlog = []
-        self.epochs_per_track = {} # 
+        self.epochs_per_track = {}
         self.metadata = {'track_data': {}}
 
     def log_epoch(self, time: float, active_tracks: list[Track], measurements_map: dict, is_update: bool) -> None:
@@ -120,10 +133,10 @@ class Logger:
             for track in active_tracks:
                 if track.uid not in self.metadata['track_data'].keys():
                     self.metadata['track_data'].update({track.uid: {
-                            'first_epoch': len(self.epochs),
-                            'last_epoch': len(self.epochs),
-                            'number_of_epochs': 1,
-                        }})
+                        'first_epoch': len(self.epochs),
+                        'last_epoch': len(self.epochs),
+                        'number_of_epochs': 1,
+                    }})
                 else:
                     self.metadata['track_data'][track.uid]['last_epoch'] += 1
                     self.metadata['track_data'][track.uid]['number_of_epochs'] += 1
@@ -168,11 +181,34 @@ class TrackingVisualizer:
                               "fixed_tracks": set()}
         self.num_rendered_epochs = 5
 
+    def render_epochs_in_range(self, plot, ep_min: int, ep_max: int):
+        if ep_min > ep_max:
+            # raise error
+            return
+
+        ep_min = max(ep_min, 0)
+        ep_min = min(ep_min, len(self.log.epochs))
+        ep_max = len(self.log.epochs) if ep_max < 0 else ep_max
+        ep_max = min(ep_max, len(self.log.epochs))
+
+        print(f'rendering all epochs in range ({ep_min}, {ep_max})')
+
+        __epoch_min = self.render_config['epoch_min']
+        __epoch_max = self.render_config['epoch_max']
+
+        self.render_config['epoch_min'] = ep_min
+        self.render_config['epoch_max'] = ep_max
+
+        self.render(plot)
+
+        self.render_config['epoch_min'] = __epoch_min
+        self.render_config['epoch_max'] = __epoch_max
+
     def render(self, plot):
         tracks_in_rendered_epochs = []
         for ep in range(self.render_config["epoch_min"], self.render_config["epoch_max"]+1):
             tracks_in_rendered_epochs.extend(self.log.tracks_in_epoch(ep))
-        
+
         tracks_in_rendered_epochs = set(tracks_in_rendered_epochs).difference(
             set(self.render_config["excluded_tracks"]))
 
@@ -184,8 +220,12 @@ class TrackingVisualizer:
         for track in tracks_in_rendered_epochs:
             rendered_track = self.render_track(
                 track, self.render_config["epoch_min"], self.render_config["epoch_max"])
-
-            # red line has to be rendered here
+            
+            pos = rendered_track['actuals']
+            plot.plot([p[0] for p in pos],
+                      [p[1] for p in pos],
+                      color='red',
+                      linewidth=0.7)
 
             actuals.extend(rendered_track['actuals'])
             predictions.extend(rendered_track['predictions'])
@@ -234,7 +274,7 @@ class TrackingVisualizer:
         if self.render_config['epoch_max'] >= len(self.log.epochs):
             return False
         self.render_config['epoch_max'] += 1
-        
+
         if self.render_config['epoch_max'] > self.num_rendered_epochs:
             self.render_config['epoch_min'] += 1
         return True
@@ -251,8 +291,10 @@ class TrackingVisualizer:
         return True
 
     def set_number_rendered_epochs(self, num_epochs: int):
-        if num_epochs < 1:
+        if num_epochs < 0:
             return
+        if num_epochs == 0:
+            num_epochs = len(self.log.epochs)
 
         self.num_rendered_epochs = num_epochs
         self.render_config['epoch_min'] = max(
@@ -260,9 +302,14 @@ class TrackingVisualizer:
 
     def filter_tracks_by_length(self, length, geq=True):
         if geq:
-            filtered_uids = {uid for uid in self.log.metadata['track_data'].keys() if self.log.metadata['track_data'][uid]['number_of_epochs'] <= length}
+            filtered_uids = {uid for uid in self.log.metadata['track_data'].keys(
+            ) if self.log.metadata['track_data'][uid]['number_of_epochs'] <= length}
         else:
-            filtered_uids = {uid for uid in self.log.metadata['track_data'].keys() if self.log.metadata['track_data'][uid]['number_of_epochs'] >= length}
+            filtered_uids = {uid for uid in self.log.metadata['track_data'].keys(
+            ) if self.log.metadata['track_data'][uid]['number_of_epochs'] >= length}
 
-        self.render_config['excluded_tracks'] = self.render_config['excluded_tracks'].union(filtered_uids)
+        self.render_config['excluded_tracks'] = self.render_config['excluded_tracks'].union(
+            filtered_uids)
 
+    def clear_filter(self):
+        self.render_config['excluded_tracks'] = set()
