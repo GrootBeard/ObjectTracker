@@ -69,9 +69,7 @@ class TrackManager:
                 continue
 
             pos = np.array([self.last_scan.measurements[ms].z[0],0.0, self.last_scan.measurements[ms].z[1], 0.0])
-            # print(pos)
             cov = np.diag([1.0, vmax**2/2.0, 1.0, vmax**2/2.0])
-            
             existence_prob = p0
 
             self.initialize_track(pos, cov)
@@ -92,19 +90,15 @@ class TrackManager:
         for track in self._tracks:
             if track.prob_existence < existence_threshold:
                 self._tracks.remove(track)
-        # indices_to_delete = [i for i in range(len(self._tracks)) if self._tracks[i].prob_existence < existence_threshold]
 
-        # for i in indices_to_delete:
-        #     print(f'deleting track {i}')
-        #     self._tracks.pop(i)
-            
 
 class Logger:
 
     def __init__(self) -> None:
         self.epochs = []
         self.prediction_backlog = []
-        self.epochs_per_track = {}
+        self.epochs_per_track = {} # 
+        self.metadata = {'track_data': {}}
 
     def log_epoch(self, time: float, active_tracks: list[Track], measurements_map: dict, is_update: bool) -> None:
         track_data = {track.uid: {
@@ -127,6 +121,17 @@ class Logger:
             epoch.set_child_epochs(self.prediction_backlog)
             self.prediction_backlog = []
             self.epochs.append(epoch)
+
+            for track in active_tracks:
+                if track.uid not in self.metadata['track_data'].keys():
+                    self.metadata['track_data'].update({track.uid: {
+                            'first_epoch': len(self.epochs),
+                            'last_epoch': len(self.epochs),
+                            'number_of_epochs': 1,
+                        }})
+                else:
+                    self.metadata['track_data'][track.uid]['last_epoch'] += 1
+                    self.metadata['track_data'][track.uid]['number_of_epochs'] += 1
 
         else:
             self.prediction_backlog.append(epoch)
@@ -164,8 +169,8 @@ class TrackingVisualizer:
         self.log = log
         self.render_config = {"epoch_min": 0,
                               "epoch_max": 0,
-                              "excluded_tracks": [],
-                              "fixed_tracks": []}
+                              "excluded_tracks": set(),
+                              "fixed_tracks": set()}
         self.num_rendered_epochs = 5
 
     def render(self, plot):
@@ -257,4 +262,12 @@ class TrackingVisualizer:
         self.num_rendered_epochs = num_epochs
         self.render_config['epoch_min'] = max(
             0, self.render_config['epoch_max'] - self.num_rendered_epochs)
+
+    def filter_tracks_by_length(self, length, geq=True):
+        if geq:
+            filtered_uids = {uid for uid in self.log.metadata['track_data'].keys() if self.log.metadata['track_data'][uid]['number_of_epochs'] <= length}
+        else:
+            filtered_uids = {uid for uid in self.log.metadata['track_data'].keys() if self.log.metadata['track_data'][uid]['number_of_epochs'] >= length}
+
+        self.render_config['excluded_tracks'] = self.render_config['excluded_tracks'].union(filtered_uids)
 
