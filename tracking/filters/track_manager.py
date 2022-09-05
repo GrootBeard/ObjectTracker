@@ -28,15 +28,12 @@ class TrackManager:
     def update_tracks(self, scan: Scan, time: float) -> None:
         dt = scan.time - time
         self.predict_tracks(time, dt)
-
-        print('updating tracks')
         
         for track in self._tracks:
             track.measurement_selection(scan, 50)
 
         clusters = build_clusters(self._tracks)
         for clus in clusters:
-            print(f'number of tracks in cluster: {len(clus.tracks)}')
             betas = track_betas(clus.tracks, clus.mts_indices,
                                 sans_existence=False, clutter_density=clus.avg_clutter_density())
 
@@ -65,7 +62,6 @@ class TrackManager:
 
         for ms, tracks in assigments.items():
             if len(tracks) > 0:
-                print(f'measurement: {ms}, assigned tracks: {tracks}')
                 continue
 
             pos = np.array([self.last_scan.measurements[ms].z[0],0.0, self.last_scan.measurements[ms].z[1], 0.0])
@@ -86,7 +82,6 @@ class TrackManager:
         return assignments
 
     def delete_false_tracks(self, existence_threshold: float) -> None:
-        print('track deletion')
         for track in self._tracks:
             if track.prob_existence < existence_threshold:
                 self._tracks.remove(track)
@@ -201,15 +196,15 @@ class TrackingVisualizer:
                 clutter_mts.extend(
                     [self.log.epochs[ep].measurements_map[mt].z for mt in mts if self.log.epochs[ep].measurements_map[mt].is_clutter])
 
-        plot.scatter([b[0] for b in measurements],
-                     [b[1] for b in measurements],
-                     color='orange', s=8)
         plot.scatter([b[0] for b in clutter_mts],
                      [b[1] for b in clutter_mts],
                      color='grey', s=8)
         plot.scatter([p[0] for p in predictions],
                      [p[1] for p in predictions],
                      color='purple', s=6)
+        plot.scatter([b[0] for b in measurements],
+                     [b[1] for b in measurements],
+                     color='orange', s=8)
         plot.scatter([a[0] for a in actuals],
                      [a[1] for a in actuals],
                      color='blue', s=10)
