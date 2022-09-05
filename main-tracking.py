@@ -19,7 +19,12 @@ def main():
     ]
     node = NodeCollection(np.array(
         [[-400, -100], [-200, 25], [0, 0], [200, -25], [400, 100]]), np.linspace(0, TMAX, 5))
-
+    node2 = NodeCollection(np.array(
+        [[400, 100], [200, -25], [0, 0], [-200, 25], [-400, -100]]), np.linspace(0, TMAX, 5))
+    factory = PathFactory()
+    paths = factory.create(nodes, LinearInterpolator)
+    paths += factory.create([node, node2], SplineInterpolator)
+    
     nprobes = 200
     probexy = np.zeros(nprobes)
     probetimes = np.linspace(0.0, TMAX-0.1, nprobes)
