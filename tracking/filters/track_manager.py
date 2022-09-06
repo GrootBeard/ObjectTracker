@@ -59,12 +59,11 @@ class TrackManager:
                               vel_indices=self.dynamics_model.vel_indices)
 
     def initialize_track(self, mean,
-                         cov=np.eye(4),
-                         ms_mat=np.array([[1, 0,  0, 0], [0, 0, 1, 0]]),
-                         ms_uncertainty_mat=np.diag([1, 1]),
+                         cov,
                          existence_prob=1.0) -> None:
         self._tracks.append(
-            Track(mean, cov, ms_mat, ms_uncertainty_mat, uid=self.track_id_counter, existence_prob=existence_prob))
+            Track(mean, cov, self.dynamics_model.H(), self.dynamics_model.R([1, 1, 1]),
+                uid=self.track_id_counter, existence_prob=existence_prob))
         self.track_id_counter += 1
 
     def one_point_init(self, vmax: float, p0: float):
@@ -218,7 +217,16 @@ class TrackingVisualizer:
             rendered_track = self.render_track(
                 track, self.render_config["epoch_min"], self.render_config["epoch_max"])
             
+            deleted_earlier = self.render_config['epoch_max'] > self.log.metadata['track_data'][track]['last_epoch']
             pos = rendered_track['actuals']
+            
+            if deleted_earlier:
+                plot.plot([p[0] for p in pos],
+                    [p[1] for p in pos],
+                    color='grey',
+                    linewidth=1.0)
+                continue
+            
             plot.plot([p[0] for p in pos],
                       [p[1] for p in pos],
                       color='red',
