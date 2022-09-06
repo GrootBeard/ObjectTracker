@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
@@ -43,14 +44,20 @@ class RadarGenerator:
                 y = path.pos(pt)[1] + np.random.normal(0, self.sigma_pos)
 
                 measurements.append(Measurement(
-                    np.array([x-probe[1], y-probe[2]]), scan_id=scan_id, mt_id=mt_id+1, origin_id=path.uid))
+                    np.array([x-probe[1], y-probe[2]]), scan_id=scan_id, uid=mt_id+1, origin_id=path.uid))
 
             if clutter_generator:
                 clutter_id = len(measurements) + 1
                 for clutter in clutter_generator.generate_clutter():
                     measurements.append(Measurement(
-                        np.array([clutter[0], clutter[1]]), scan_id=scan_id, mt_id=clutter_id, origin_id=-1, is_clutter=True))
+                        np.array([clutter[0], clutter[1]]), scan_id=scan_id, uid=clutter_id, origin_id=-1, is_clutter=True))
                     clutter_id += 1
+
+            # temp stuff to test cluster cut-off
+            random.shuffle(measurements)
+            for i in range(len(measurements)):
+                measurements[i].uid = i+1
+            # end of temp stuff
 
             if measurements:
                 scans.append(
@@ -63,7 +70,7 @@ class RadarGenerator:
 class Measurement:
     z: np.array
     scan_id: int
-    mt_id: int
+    uid: int
     origin_id: int
     is_clutter: bool = False
 
@@ -79,7 +86,7 @@ class Scan:
 
     @property
     def measurements(self):
-        return self._measurements.items()
+        return self._measurements
 
     @property
     def measurements_list(self):
