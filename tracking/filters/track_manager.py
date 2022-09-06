@@ -1,26 +1,23 @@
 import numpy as np
+
 from tracking.filters.jipdaf import PDA, Track, build_clusters, track_betas
+from tracking.filters.dynamics_models import DynamicsModel
 from tracking.util.metrics import Measurement, Scan
 
 
 class TrackManager:
 
-    def __init__(self) -> None:
+    def __init__(self, dynamics_model: DynamicsModel) -> None:
         self._tracks = []
         self.track_id_counter = 0
         self.logger = Logger()
         self.last_scan = None
         self.mts_non_association_probs = {}
+        self.dynamics_model = dynamics_model
 
     def predict_tracks(self, time, dt: float) -> None:
-        F1 = np.array([[1, dt], [0, 1]])
-        F = np.kron(np.eye(2), F1)
-        v = np.array([dt**2 / 2, dt]).reshape(2, 1)
-        Q1 = v.dot(v.T)
-        Q = np.kron(np.eye(2), Q1)
-
         for track in self._tracks:
-            track.predict(F=F, Q=Q, time=time)
+            track.predict(F=self.dynamics_model.F(dt), Q=self.dynamics_model.Q(dt), time=time)
             track.prob_existence *= 1-dt/1000
 
         self.log_epoch(time=time+dt, measurements_map=None, update=False)
@@ -49,7 +46,6 @@ class TrackManager:
                     if ms_index == 0:
                         continue
                     self.mts_non_association_probs[ms_index] -= beta_tau_i * track.prob_existence 
-                    # print(f'subtracting {beta_tau_i} * {track.prob_existence} = {beta_tau_i * track.prob_existence }')
 
         self.log_epoch(
             time=scan.time, measurements_map=scan.measurements, update=True)
@@ -58,7 +54,9 @@ class TrackManager:
 
     def log_epoch(self, time: float, measurements_map: dict, update: bool) -> None:
         self.logger.log_epoch(time=time, active_tracks=self._tracks,
-                              measurements_map=measurements_map, is_update=update)
+                              measurements_map=measurements_map, is_update=update,
+                              pos_indices=self.dynamics_model.pos_indices,
+                              vel_indices=self.dynamics_model.vel_indices)
 
     def initialize_track(self, mean,
                          cov=np.eye(4),
@@ -76,9 +74,8 @@ class TrackManager:
             if len(tracks) > 0:
                 continue
 
-            pos = np.array([self.last_scan.measurements[ms].z[0],
-                           0.0, self.last_scan.measurements[ms].z[1], 0.0])
-            cov = np.diag([1.0, vmax**2/2.0, 1.0, vmax**2/2.0])
+            pos = self.dynamics_model.pos_one_point_init((self.last_scan.measurements[ms].z[0], self.last_scan.measurements[ms].z[1]))
+            cov = self.dynamics_model.cov_one_point_init(vmax)
             existence_prob = p0 * self.mts_non_association_probs[ms]
 
             self.initialize_track(pos, cov, existence_prob=existence_prob)
@@ -108,12 +105,12 @@ class Logger:
         self.epochs_per_track = {}
         self.metadata = {'track_data': {}}
 
-    def log_epoch(self, time: float, active_tracks: list[Track], measurements_map: dict, is_update: bool) -> None:
+    def log_epoch(self, time: float, active_tracks: list[Track], measurements_map: dict, is_update: bool, pos_indices: tuple, vel_indices: tuple) -> None:
         track_data = {track.uid: {
             'selected_measurements': [track._last_scan.measurements_list[i - 1].uid for i in track.sel_mts_indices if i != 0]
             if is_update else [],
-            'position': [track.x[0], track.x[2]],
-            'velocity': [track.x[1], track.x[3]],
+            'position': [track.x[pos_indices[0]], track.x[pos_indices[1]]],
+            'velocity': [track.x[vel_indices[0]], track.x[vel_indices[1]]],
             'covariance': track.P}
             for track in active_tracks}
 
