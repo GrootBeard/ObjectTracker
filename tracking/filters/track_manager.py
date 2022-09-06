@@ -23,6 +23,7 @@ class TrackManager:
         self.log_epoch(time=time+dt, measurements_map=None, update=False)
 
     def update_tracks(self, scan: Scan, time: float) -> None:
+        print(f'number of active tracks: {len(self._tracks)}')
         dt = scan.time - time
         self.predict_tracks(time, dt)
 
@@ -33,9 +34,6 @@ class TrackManager:
         self.mts_non_association_probs = {mt.uid: 1 for mt in scan.measurements.values()}
         
         for clus in clusters:
-            print(f'cluster size: {len(clus.tracks)}')
-            print(
-                f'number of selected measurements in cluster: {len(clus.mts_indices)}')
             betas = track_betas(clus.tracks, clus.mts_indices,
                                 sans_existence=False, clutter_density=clus.avg_clutter_density())
 
@@ -147,6 +145,9 @@ class Logger:
 
         return self.epochs[epoch].tracks
 
+    def track_lengths(self):
+        return [track['number_of_epochs'] for track in self.metadata['track_data'].values()]
+    
 
 class LogEpoch:
 

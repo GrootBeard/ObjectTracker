@@ -112,8 +112,6 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], clut
         betas_tau = {
             t: association_probabilities[i] / existence_prob for i, t in enumerate(cluster_mts_indices)}
 
-        # print(f'track uid {track.uid} probability of existence: {existence_prob}')
-        # print(f'clutter density: {clutter_density}')
         track.prob_existence = existence_prob
 
         tracks_betas.append(betas_tau)
@@ -235,7 +233,6 @@ def build_clusters(tracks: list[Track], max_cluster_size: int) -> list[Cluster]:
         overlap = False
         for clus in clusters:
             if len(clus.tracks) >= max_cluster_size or len(clus.mts_indices) + len(t.sel_mts_indices) > 35:
-                print('cluster is full')
                 continue
 
             if clus.overlap(t.sel_mts_indices):
