@@ -227,18 +227,21 @@ class Cluster:
         return avg_clutter_mts / self.cluster_selection_area()
 
 
-def build_clusters(tracks: list[Track], max_cluster_size: int) -> list[Cluster]:
+def build_clusters(tracks: list[Track], confirmation_threshold: float, max_cluster_size: int) -> list[Cluster]:
     clusters = []
     for t in tracks:
         overlap = False
-        for clus in clusters:
-            if len(clus.tracks) >= max_cluster_size or len(clus.mts_indices) + len(t.sel_mts_indices) > 35:
-                continue
 
-            if clus.overlap(t.sel_mts_indices):
-                clus.add_track(t)
-                overlap = True
-                break
+        # if track existence probability is low revert to disjoint PDA to reduce computation
+        if t.prob_existence >= confirmation_threshold: 
+            for clus in clusters:
+                # if len(clus.tracks) >= max_cluster_size or len(clus.mts_indices) + len(t.sel_mts_indices) > 35:
+                    # continue
+
+                if clus.overlap(t.sel_mts_indices):
+                    clus.add_track(t)
+                    overlap = True
+                    break
         if not overlap:
             new_clus = Cluster()
             new_clus.add_track(t)
