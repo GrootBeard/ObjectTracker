@@ -4,10 +4,11 @@ from tracking.util.metrics import LogEntryType, Scan, TrackLog
 
 
 class Track:
-    __slots__ = ("uid", "_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection", "gate_size",
+    __slots__ = ("dim", "uid", "_x", "_P", "_prob_existence", "H", "R", "prob_gate", "prob_detection", "gate_size",
                  "mts_likelihoods", "sel_mts_indices", "_loggers", "_last_scan")
 
-    def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray, existence_prob=1.0, uid=-1) -> None:
+    def __init__(self, x: np.array, P: np.ndarray, H: np.ndarray, R: np.ndarray, dim: int, existence_prob=1.0, uid=-1) -> None:
+        self.dim = dim
         self._x = x
         self._P = P
         self._prob_existence = existence_prob
@@ -26,15 +27,14 @@ class Track:
     def predict(self, F: np.ndarray, Q: np.ndarray, time: float) -> None:
         new_x = F.dot(self._x)
         new_P = F.dot(self._P).dot(F.T) + Q
-        # TODO: Update probability of existence
-        # dt is required to do that
         self.update(new_x, new_P, time, LogEntryType.PREDICTION)
 
     def measurement_selection(self, scan: Scan, g: float) -> None:
         self.gate_size = g
         S = self.S
         S_inv = np.linalg.inv(S)
-        norm = np.sqrt((2 * np.pi)**len(self.x) * np.linalg.det(S))
+        # norm = np.sqrt((2 * np.pi)**len(self.x) * np.linalg.det(S))
+        norm = np.sqrt((2 * np.pi)**self.dim * np.linalg.det(S))
         norm *= self.prob_gate
 
         y = self.H.dot(self._x)
@@ -79,11 +79,15 @@ class Track:
 
     @property
     def S(self) -> np.ndarray:
+        lt = self.H.dot(self._P).dot(self.H.T)
+        rt = self.R
+        print(lt)
+        print(rt)
         return self.H.dot(self._P).dot(self.H.T) + self.R
 
     def gate_volume(self):
-        dim = len(self.x)
-        return np.power(np.pi, dim/2) * np.sqrt(self.gate_size * np.linalg.det(self.S)) / gamma(dim/2 + 1)
+        # dim = len(self.x)
+        return np.power(np.pi, self.dim/2) * np.sqrt(self.gate_size * np.linalg.det(self.S)) / gamma(self.dim/2 + 1)
 
     def selected_mts_count(self):
         return len(self.sel_mts_indices) - 1
@@ -92,7 +96,7 @@ class Track:
         self._loggers.append(hist)
 
 
-def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], clutter_density: float, sans_existence: bool = False) -> dict:
+def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], clutter_density: float, sans_existence=False) -> dict:
     assignments = [t.sel_mts_indices for t in cluster_tracks]
     tracks_betas = []
     for tau, track in enumerate(cluster_tracks):
@@ -106,8 +110,7 @@ def track_betas(cluster_tracks: list[Track], cluster_mts_indices: set[int], clut
         association_probabilities[0] *= ((1 - track.prob_gate * track.prob_detection) * track.prob_existence) / (
             1 - track.prob_gate * track.prob_detection * track.prob_existence)
 
-        existence_prob = 1 if sans_existence else sum(
-            association_probabilities)
+        existence_prob = 1 if sans_existence else sum(association_probabilities)
 
         betas_tau = {
             t: association_probabilities[i] / existence_prob for i, t in enumerate(cluster_mts_indices)}
@@ -125,8 +128,9 @@ def _calculate_association_prob(cluster_tracks: list[Track], tau: int, mt_index:
 
 def _lookup_event_track_weight(track: Track, mt_index: int, clutter_density: float) -> float:
     if mt_index > 0:
+        # print(f'clutter density: {clutter_density}')
         return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / clutter_density
-        # return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 0.0003
+        # return track.prob_gate * track.prob_detection * track.mts_likelihoods[mt_index] * track.prob_existence / 1e-10 
     return 1 - track.prob_gate * track.prob_detection * track.prob_existence
 
 
@@ -227,18 +231,21 @@ class Cluster:
         return avg_clutter_mts / self.cluster_selection_area()
 
 
-def build_clusters(tracks: list[Track], max_cluster_size: int) -> list[Cluster]:
+def build_clusters(tracks: list[Track], confirmation_threshold: float, max_cluster_size: int) -> list[Cluster]:
     clusters = []
     for t in tracks:
         overlap = False
-        for clus in clusters:
-            if len(clus.tracks) >= max_cluster_size or len(clus.mts_indices) + len(t.sel_mts_indices) > 35:
-                continue
 
-            if clus.overlap(t.sel_mts_indices):
-                clus.add_track(t)
-                overlap = True
-                break
+        # if track existence probability is low revert to disjoint PDA to reduce computation
+        if t.prob_existence >= confirmation_threshold: 
+            for clus in clusters:
+                # if len(clus.tracks) >= max_cluster_size or len(clus.mts_indices) + len(t.sel_mts_indices) > 35:
+                    # continue
+
+                if clus.overlap(t.sel_mts_indices):
+                    clus.add_track(t)
+                    overlap = True
+                    break
         if not overlap:
             new_clus = Cluster()
             new_clus.add_track(t)
