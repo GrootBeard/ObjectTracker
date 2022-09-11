@@ -5,10 +5,10 @@ import numpy as np
 
 class DynamicsModel(ABC):
 
-    # @property
-    # @abstractmethod
-    # def dim(self):
-    #     pass
+    @property
+    @abstractmethod
+    def dim(self):
+        pass
 
     @abstractmethod
     def F(self, dt):
@@ -47,6 +47,10 @@ class DynamicsModel(ABC):
 
 class DefaultDynamicsPV2D(DynamicsModel):
 
+    @property
+    def dim(self):
+        return 2
+    
     def F(self, dt):
         F1 = np.array([[1, dt], [0, 1]])
         return np.kron(np.eye(2), F1)
@@ -79,8 +83,12 @@ class DefaultDynamicsPV2D(DynamicsModel):
     
 class DefaultDynamicsPVA2D(DynamicsModel):
 
+    @property
+    def dim(self):
+        return 2
+    
     def F(self, dt):
-        F1 = np.array([[1, dt, dt**2], [0, 1, dt], [0, 0, 1]])
+        F1 = np.array([[1, dt, dt**2/2], [0, 1, dt], [0, 0, 1]])
         return np.kron(np.eye(2), F1)
     
     def Q(self, dt):

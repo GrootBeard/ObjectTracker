@@ -22,6 +22,9 @@ class Path2D:
 
     def vel(self, t) -> np.ndarray:
         return self.interpolator.derivative(t)
+    
+    def acc(self, t) -> np.ndarray:
+        return self.interpolator.derivative(t, 2)
 
     @property
     def t_min(self):

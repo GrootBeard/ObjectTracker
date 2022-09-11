@@ -23,17 +23,19 @@ class TrackManager:
         self.log_epoch(time=time+dt, measurements_map=None, update=False)
 
     def update_tracks(self, scan: Scan, time: float) -> None:
-        print(f'number of active tracks: {len(self._tracks)}')
+        # print(f'number of active tracks: {len(self._tracks)}')
         dt = scan.time - time
         self.predict_tracks(time, dt)
 
         for track in self._tracks:
-            track.measurement_selection(scan, 28)
+            track.measurement_selection(scan, 14)
 
-        clusters = build_clusters(self._tracks, confirmation_threshold=0.1, max_cluster_size=9)
+        clusters = build_clusters(self._tracks, confirmation_threshold=0.30, max_cluster_size=9)
         self.mts_non_association_probs = {mt.uid: 1 for mt in scan.measurements.values()}
         
         for clus in clusters:
+            if len(clus.tracks) > 1:
+                print(f'cluster size: {len(clus.tracks)}')
             betas = track_betas(clus.tracks, clus.mts_indices,
                                 sans_existence=False, clutter_density=clus.avg_clutter_density())
 
@@ -60,14 +62,17 @@ class TrackManager:
                          cov,
                          existence_prob=1.0) -> None:
         self._tracks.append(
-            Track(mean, cov, self.dynamics_model.H(), self.dynamics_model.R([1, 1, 1]),
-                uid=self.track_id_counter, existence_prob=existence_prob))
+            Track(mean, cov, self.dynamics_model.H(), self.dynamics_model.R([1, 1, 1]), 
+                dim=self.dynamics_model.dim, uid=self.track_id_counter, existence_prob=existence_prob))
         self.track_id_counter += 1
 
-    def one_point_init(self, vmax: float, p0: float):
+    def one_point_init(self, vmax: float, p0: float, disable_clutter_tracks=False):
         assigments = self.track_assigned_measurements()
 
         for ms, tracks in assigments.items():
+            if disable_clutter_tracks and self.last_scan.measurements[ms].is_clutter:
+                continue
+            
             if len(tracks) > 0:
                 continue
 
@@ -322,7 +327,10 @@ class TrackingVisualizer:
         return {"actuals": actuals, "predictions": predictions, "actual_mts": actual_mts, "clutter_mts": clutter_mts, "measurement_uids": measurement_uids}
 
     def render_measurements(self, plot):
-        measurements = self.log.epochs[self.render_config['epoch_max']-1].measurements_map.values()
+        if self.render_config['epoch_max'] >= len(self.log.epochs):
+            return
+        
+        measurements = self.log.epochs[self.render_config['epoch_max']].measurements_map.values()
         plot.scatter([mt.z[0] for mt in measurements],
                      [mt.z[1] for mt in measurements],
                      color='brown', s=15)
